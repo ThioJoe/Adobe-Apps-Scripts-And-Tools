@@ -5,6 +5,7 @@
 // When using eval, it will use a working directory in the program files directory, so it is necessary to use the full path to the script.
 //       ---- Compact robus example at top of a script ----
 //
+// function getCurrentScriptDirectory() { return (new File($.fileName)).parent; }
 // function joinPath() { return Array.prototype.slice.call(arguments).join('/'); }
 // function relativeToFullPath(relativePath) { return joinPath(getCurrentScriptDirectory(), relativePath); }
 // try { eval("#include '" + relativeToFullPath("Utils.jsx") + "'"); }
@@ -17,40 +18,42 @@
 //    To clear console in Extendscript Toolkit, can use app.clc();  Or this line for automatic each run, regardless of target app:
 //      var bt=new BridgeTalk;bt.target='estoolkit-4.0';bt.body='app.clc()';bt.send(5);
 
+// Author Repo: https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools
+
 function getCurrentScriptDirectory() { return (new File($.fileName)).parent; }
 function joinPath() { return Array.prototype.slice.call(arguments).join('/'); }
 function relativeToFullPath(relativePath) { return joinPath(getCurrentScriptDirectory(), relativePath); }
 
 function getTopTrackItemAtPlayhead() {
-  var seq = app.project.activeSequence;
-  var currentTime = Number(seq.getPlayerPosition().ticks);
-  var topTrackItem = null;
-  var highestTrackIndex = -1;
+    var seq = app.project.activeSequence;
+    var currentTime = Number(seq.getPlayerPosition().ticks);
+    var topTrackItem = null;
+    var highestTrackIndex = -1;
 
-  var videoTrackCount = seq.videoTracks;
+    var videoTrackCount = seq.videoTracks;
 
-  for (var i = 0; i < seq.videoTracks.numTracks; i++) {
-    var track = seq.videoTracks[i];
-    for (var j = 0; j < track.clips.numItems; j++) {
-      var clip = null;
-      clip = track.clips[j];
-      var clipStart = Number(clip.start.ticks);
-      var clipEnd =  Number(clip.end.ticks);
+    for (var i = 0; i < seq.videoTracks.numTracks; i++) {
+        var track = seq.videoTracks[i];
+        for (var j = 0; j < track.clips.numItems; j++) {
+            var clip = null;
+            clip = track.clips[j];
+            var clipStart = Number(clip.start.ticks);
+            var clipEnd =  Number(clip.end.ticks);
 
-      if (currentTime >= clipStart && currentTime < clipEnd) {
-        if (i > highestTrackIndex) {
-          highestTrackIndex = i;
-          topTrackItem = clip;
+            if (currentTime >= clipStart && currentTime < clipEnd) {
+                if (i > highestTrackIndex) {
+                    highestTrackIndex = i;
+                    topTrackItem = clip;
+                }
+            }
         }
-      }
     }
-  }
 
-  if (topTrackItem) {
-    return highestTrackIndex; // Return the track number (add 1 to make it 1-based)
-  } else {
-    return -1; // Return -1 to indicate no track item found
-  }
+    if (topTrackItem) {
+        return highestTrackIndex; // Return the track number (add 1 to make it 1-based)
+    } else {
+        return -1; // Return -1 to indicate no track item found
+    }
 }
 
 
@@ -83,7 +86,15 @@ function getSelectedClipInfoQE() {
         
         var trackIndex = vanillaClip.parentTrackIndex;
         // Get the corresponding track in QE
-        var trackItem = qeSequence.getVideoTrackAt(trackIndex);
+        if (vanillaClip.mediaType === "Video") {
+            var trackItem = qeSequence.getVideoTrackAt(trackIndex);
+        } else if (vanillaClip.mediaType === "Audio") {
+            var trackItem = qeSequence.getAudioTrackAt(trackIndex);
+        }
+        else {
+            alert("Skipping Unknown Media Type: " + vanillaClip.mediaType);
+            continue;
+        }
         
         // Search through items in this track to find matching clip by start time
         for (var j = 0; j < trackItem.numItems; j++) {
@@ -99,6 +110,7 @@ function getSelectedClipInfoQE() {
                 // Stores the info to be returned for each QE clip item in the list of selected items
                 var info = {
                     name: qeClipObject.name,
+                    vanillaMediaType : vanillaClip.mediaType,
                     clipItemIndexQE: j,   // The QE Clip index in the track
                     trackIndex: trackIndex, // The track index in the sequence
                     startTicks: qeClipObject.start.ticks,
@@ -159,5 +171,5 @@ function getSelectedClipInfoVanilla() {
 }
 
 function testUtilsAlert(){
-  alert("Hello from inside Utils.jsx!");
+    alert("Hello from inside Utils.jsx!");
 }
