@@ -24,9 +24,14 @@
 
 ## Add Effect Keyframes At Transitions
  - **Purpose:** Add keyframes for the chosen effect property at the edge of transitions for selected clips
+- **Example:**
+<p align="center"><img width="800" alt="Effects control panel view of Scale keyframes lined up with transitions" src="https://github.com/user-attachments/assets/0badd1f2-405d-4d1c-b5e8-f6dc9793c524"></p>
 
 ## Add Mogrt From Path
  - **Purpose:** Add a specified (`.mogrt`) file of your choice to the sequence at the playhead position. It will put it on the video track above the topmost clip under the playhead.
 
 ## Add Transitions To Internal Cuts
 - **Purpose:** Add a specified transition between touching selected clips, but only on their "interior" cuts, not the furthest left or right ends of selected clips
+- **Example:**
+<p align="center"><img width="800" alt="Timeline view of selected clips with transitions between them but not on the left and right ends" src="https://github.com/user-attachments/assets/631b9f01-d146-43ff-a1ec-4939b432e588"></p>
+
