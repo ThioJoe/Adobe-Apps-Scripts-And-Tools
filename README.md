@@ -20,7 +20,9 @@
 
 
 # [Premiere Pro Scripts](Scripts/Premiere%20Pro/)
-### Requirements: Most of these require the "[`Utils.jsx`](https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools/blob/main/Scripts/Premiere%20Pro/Utils.jsx)" file which is available next to the other Premiere Pro scripts
+
+- ### Requirements: Most of these require the "[`Utils.jsx`](https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools/blob/main/Scripts/Premiere%20Pro/Utils.jsx)" file which is available next to the other Premiere Pro scripts
+- ### Note: These scripts are probably most useful when used with the Excalibur extension which lets you assign scripts to run via keyboard shortcuts
 
 ## Add Effect Keyframes At Transitions [⮺](Scripts/Premiere%20Pro/Add_Effect_Keyframes_At_Transitions.jsx)
 
