@@ -56,7 +56,7 @@ function addTransitionsBetweenClips(clipsQE, transitionName, durationString, ali
         // addTransition(
         //     transition: object,       // Transition object from qe.project.getVideoTransitionByName(), such as .getVideoTransitionByName("Cross Dissolve")
         //     addToStart: boolean,      // true = add transition to start of clip and end of the clip, false = add to end of clip only
-        //     inDurationString?: string, // Duration in frames ("30") or seconds+frames ("1:30")
+        //     inDurationString?: string, // Duration in frames ("30") or seconds+frames ("1:30") or seconds in decimal ("1.5")
         //     inOffsetString?: string,  // Offset timing - Seems non-functional, couldn't figure it out, but works when using "0:00"
         //     inAlignment?: number,     // Position relative to cut: 0 = start at cut, 0.5 = center at cut, 1 = end at cut
         //     inSingleSided?: boolean,  // Seems to force transition to only one side of the clip. Set to false if you'll want the transition to span across the cut
@@ -71,7 +71,10 @@ var selectedClips = getSelectedClipInfoQE();
 // ---------------------- Settings And Run ----------------------
 // Settings for the transition
 var transitionName = "Cross Dissolve";
-var durationString = "0:24"; // Can be just number of frames like "30" for 30 frames, or timecode like "0:30" or "1:30" for 1 second 30 frames
 var alignment = 0.5; // Must be a number/decimal. Position relative to cut: 0 = start at cut, 0.5 = center at cut, 1 = end at cut
+// Duration: Can be just number of frames like "30" for 30 frames, or timecode like "0:30" or "1:30" for 1 second 30 frames
+//     > Can also be a decimal number like "1.5" for 1.5 seconds or "2.0" for 2 seconds.
+//     > But be careful, a decimal with a trailing zero like "1.50" will be interpreted as "1 second 50 frames"
+var durationString = "2.0";
 
 addTransitionsBetweenClips(selectedClips, transitionName, durationString, alignment);
