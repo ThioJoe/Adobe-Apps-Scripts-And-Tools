@@ -1,11 +1,29 @@
 ﻿// Purpose: This script will add keyframes to the chosen effect property at the edge of transitions for selected clips
 //          For example, at the end of the left transition and the start of the right transition of any selected clips with transitions on them
 //
-// How To use: Look at the bottom of the script for the variable settings
+// How To use: Set the user settings below and run the script
 //
 // Requires the "Utils.jsx" file also from the repo to be in the same directory as this script, or in an "includes" folder in the same directory
 //
 // Author Repo: https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools
+
+// ===================================  USER SETTINGS  ===================================
+// Theoretically you could apply to both, but the effect would have to be the same name for both, so just really just make one true
+var applyToAudioTracks = false;     // Boolean true/false
+var applyToVideoTracks = true;      // Boolean true/false
+
+// The effect component name and property name must match exactly, though it wont be case sensitive
+//      > The component name is basically the effect name, and the property name is the particular parameter name for the effect
+var effectComponentName = "Motion";  // String
+var effectPropertyName = "Scale";    // String
+
+// Left and Right values are the values for the particular keyframe for the left and right transitions
+//      > Both are optional, but must be a number if provided. If not provided or set to null, the script will use the current value at the keyframe time, even if there are other keyframes
+var leftValue = null;    // Must be a number (can include decimal) -- Or null/undefined
+var rightValue = null;   // Must be a number (can include decimal) -- Or null/undefined
+
+// ========================================================================================
+// ========================================================================================
 
 // ---------------------- Include Utils.jsx ----------------------
 function getCurrentScriptDirectory() { return (new File($.fileName)).parent; }
@@ -151,17 +169,7 @@ function getTransitionsForSelectedClips(applyToAudioTracks, applyToVideoTracks) 
     return clipTransitionInfo;
 }
 
-function ticksToSeconds(ticks) {
-    var TICKS_PER_SECOND = 254016000000;
-    return Number(ticks) / TICKS_PER_SECOND;
-}
 
-function ticksToTimeObject(ticks) {
-    var time = new Time();
-    var seconds = Number(ticks) / 254016000000;
-    time.seconds = seconds;
-    return time;
-}
 
 function findProperty(clip, componentName, propertyName) {
     // Component name is basically the effect name, and property name is the particular parameter name for the effect
@@ -268,20 +276,5 @@ function addTransitionScaleKeyframes(applyToAudioTracks, applyToVideoTracks, eff
         }
     }
 }
-
-// ---------------------- SETTINGS AND RUN ----------------------
-// Theoretically you could apply to both, but the effect would have to be the same name for both, so just really just make one true
-var applyToAudioTracks = false;     // Boolean true/false
-var applyToVideoTracks = true;      // Boolean true/false
-
-// The effect component name and property name must match exactly, though it wont be case sensitive
-//      > The component name is basically the effect name, and the property name is the particular parameter name for the effect
-var effectComponentName = "Motion";  // String
-var effectPropertyName = "Scale";    // String
-
-// Left and Right values are the values for the particular keyframe for the left and right transitions
-//      > Both are optional, but must be a number if provided. If not provided or set to null, the script will use the current value at the keyframe time, even if there are other keyframes
-var leftValue = null;    // Must be a number (can include decimal) -- Or null/undefined
-var rightValue = null;   // Must be a number (can include decimal) -- Or null/undefined
 
 addTransitionScaleKeyframes(applyToAudioTracks, applyToVideoTracks, effectComponentName, effectPropertyName, leftValue, rightValue);
