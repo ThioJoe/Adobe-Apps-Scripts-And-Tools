@@ -39,3 +39,10 @@
 - **Purpose:** Add a specified transition between touching selected clips, but only on their "interior" cuts, not the furthest left or right ends of selected clips
 - **Example:**
 <p align="center"><img width="800" alt="Timeline view of selected clips with transitions between them but not on the left and right ends" src="https://github.com/user-attachments/assets/631b9f01-d146-43ff-a1ec-4939b432e588"></p>
+
+
+# Extendscript Library
+
+Extendscript external dll libraries allow adding native javascript methods, functions, etc that can be used with Extendscript. I've created my own to add various functionality that wasn't built into extendscript. Currently there's just one method for playing a system error sound but I'll add more to it over time.
+
+See this Wiki page for more details: https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools/wiki/Extendscript-ThioUtils
