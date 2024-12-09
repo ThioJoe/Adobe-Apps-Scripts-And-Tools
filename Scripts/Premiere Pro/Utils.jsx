@@ -1,9 +1,9 @@
 ﻿// Examples of ways to Include:
 //    #include './includes/Utils.jsx'
 //    #include 'Utils.jsx'
-
+//
 // When using eval, it will use a working directory in the program files directory, so it is necessary to use the full path to the script.
-//       ---- Compact robus example at top of a script ----
+//       ---- Compact robust example at top of a script ----
 //
 // function getCurrentScriptDirectory() { return (new File($.fileName)).parent; }
 // function joinPath() { return Array.prototype.slice.call(arguments).join('/'); }
@@ -13,11 +13,11 @@
 //     try { eval("#include '" + relativeToFullPath("includes/Utils.jsx") + "'"); }
 //     catch(e) { alert("Could not find Utils.jsx in the same directory as the script or in an includes folder."); } // Return optional here, if you're within a main() function
 // }
-
+//
 // Random Notes:
 //    To clear console in Extendscript Toolkit, can use app.clc();  Or this line for automatic each run, regardless of target app:
 //      var bt=new BridgeTalk;bt.target='estoolkit-4.0';bt.body='app.clc()';bt.send(5);
-
+//
 // Author Repo: https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools
 
 // Loads the "Extendscript ThioUtils" .dll external library
@@ -32,10 +32,19 @@ try {
     $.writeln("Error loading ThioUtils.dll: " + e);
 }
 
+// Returns the directory of the current running script as a File object.
+// Useful for referencing other scripts or resources relative to this script's location.
 function getCurrentScriptDirectory() { return (new File($.fileName)).parent; }
+
+// Joins multiple path segments into a single path string separated by '/'.
 function joinPath() { return Array.prototype.slice.call(arguments).join('/'); }
+
+// Given a relative path, returns a full path by joining it with the directory of the current script.
 function relativeToFullPath(relativePath) { return joinPath(getCurrentScriptDirectory(), relativePath); }
 
+// Determines which video clip is at the current playhead position on the highest numbered track.
+// If returnAsObject is true, returns the clip object; if false, returns the track index or -1 if none found.
+// Useful for placing an item on the track and ensuring you don't overwrite something there
 function getTopTrackItemAtPlayhead(returnAsObject) {
     var seq = app.project.activeSequence;
     var currentTime = Number(seq.getPlayerPosition().ticks);
@@ -78,6 +87,7 @@ function getTopTrackItemAtPlayhead(returnAsObject) {
     }
 }
 
+// Returns an array of clip/track objects that have video clips intersecting the current playhead position.
 function GetAllVideoClipsUnderPlayhead_AsObjectArray() {
     var seq = app.project.activeSequence;
     var currentTime = Number(seq.getPlayerPosition().ticks);
@@ -101,15 +111,14 @@ function GetAllVideoClipsUnderPlayhead_AsObjectArray() {
     return tracks;
 }
 
-function GetSelectedVideoClipsUnderPlayhead_AsObject() {
-    var allTracksAtPlayhead = GetAllVideoClipsUnderPlayhead_AsObjectArray();
-}
-
+// Retrieves the current playhead position, relative to the timeline, as a tick value.
 function GetPlayheadPosition_WithinTimeline_AsTicks() {
     // var seq = app.project.activeSequence;
     return Number(app.project.activeSequence.getPlayerPosition().ticks);
 }
 
+// Retrieves an array of currently selected video clips from the active sequence.
+// Filters out any non-video items and alerts if no video clips are selected.
 function GetSelectedVideoClips(){
     var selectedClipsRaw = app.project.activeSequence.getSelection();
     var selectedClips = [];
@@ -128,6 +137,7 @@ function GetSelectedVideoClips(){
     return selectedClips;
 }
 
+// Given a clip object and the name of a component (effect), returns the component object if found, otherwise returns null.
 function GetClipEffectComponent_AsObject(clipObj, componentName) {
     // Find specified component
     var component = null;
@@ -140,6 +150,9 @@ function GetClipEffectComponent_AsObject(clipObj, componentName) {
     return component;
 }
 
+// Calculates the current position of the playhead, relative to within a selected clip's source media, as ticks.
+// This requires exactly one selected clip and checks if the playhead is within it. 
+// If useAudioTrack is true, the selected clip must be audio; otherwise, it must be video.
 function GetPlayheadPosition_WithinSource_AsTicks(useAudioTrack) {
     var selectedClipsRaw = app.project.activeSequence.getSelection();
     var selectedClips = [];
@@ -167,11 +180,14 @@ function GetPlayheadPosition_WithinSource_AsTicks(useAudioTrack) {
     return ConvertTimelineTicksToSourceTicks(selectedClip, playheadTimelinePositionTicks);
 }
 
+// Converts a given tick count to seconds based on a known TICKS_PER_SECOND value.
 function ticksToSeconds(ticks) {
     var TICKS_PER_SECOND = 254016000000;
     return Number(ticks) / TICKS_PER_SECOND;
 }
 
+// Converts a given tick count into a Time object with its seconds property set.
+// Useful where certain script methods require a time object as a parameter
 function ticksToTimeObject(ticks) {
     var time = new Time();
     var seconds = Number(ticks) / 254016000000;
@@ -179,6 +195,8 @@ function ticksToTimeObject(ticks) {
     return time;
 }
 
+// Given a specific timeline position in ticks, this calculates the corresponding position
+// relative to within the given clip object's source
 function ConvertTimelineTicksToSourceTicks(clipObject, timelineTicks) {
     var timelineTicksNumber = Number(timelineTicks);
     var clipStartTicks = Number(clipObject.start.ticks);
@@ -187,6 +205,8 @@ function ConvertTimelineTicksToSourceTicks(clipObject, timelineTicks) {
     return clipInternalStartTicks + timelineTicksOffset_FromClipStart;
 }
 
+// Gathers information about the currently selected clips using the QE DOM.
+// Returns an array of custom objects each containing details about the corresponding QE clip object.
 function getSelectedClipInfoQE() {
     // Enable QE DOM
     app.enableQE();
@@ -263,7 +283,8 @@ function getSelectedClipInfoQE() {
     return clipInfo;
 }
 
-
+// Gathers information about the currently selected clips using the vanilla (non-QE) DOM.
+// Returns an array of custom objects with details like start/end ticks, internal in/out points, track, and node ID.
 function getSelectedClipInfoVanilla() {
     var activeSequence = app.project.activeSequence;
     if (!activeSequence) {
@@ -303,7 +324,8 @@ function getSelectedClipInfoVanilla() {
     return clipInfo;
 }
 
-// Play the system beep sound if the required library is loaded. Otherwise display an alert.
+// Plays a system beep sound if the external ThioUtils library is loaded, or shows an alert otherwise.
+// Useful for notifying the user of errors or important events without interrupting with an alert box.
 function playErrorBeep(fallbackAlertMessage) {
     if (typeof thioUtils !== 'undefined' && thioUtils !== null) {
         thioUtils.systemBeep();
@@ -312,7 +334,7 @@ function playErrorBeep(fallbackAlertMessage) {
     }
 }
 
-// To verify utils was included correctly
+// Displays a simple alert message to confirm that Utils.jsx is successfully included and accessible.
 function testUtilsAlert(){
     alert("Hello from inside Utils.jsx!");
 }
