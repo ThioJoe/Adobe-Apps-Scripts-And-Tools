@@ -16,7 +16,7 @@
  
 ### **Path Points to Ellipse Demo:**
        
-![PathToEllipseExample-optimize](https://github.com/user-attachments/assets/c595ee4d-f8f9-4fd5-b47a-cc9802e66583)
+<p align="center"><img width="800" src="https://github.com/user-attachments/assets/c595ee4d-f8f9-4fd5-b47a-cc9802e66583">
 
 
 # [Premiere Pro Scripts](Scripts/Premiere%20Pro/)
@@ -33,6 +33,30 @@
 ## Add Mogrt From Path [⮺](Scripts/Premiere%20Pro/Add_Mogrt_FromPath.jsx)
 
  - **Purpose:** Add a specified (`.mogrt`) file of your choice to the sequence at the playhead position. It will put it on the video track above the topmost clip under the playhead.
+
+## Add Transitions To Internal Cuts [⮺](Scripts/Premiere%20Pro/Add_Transitions_Internal_Cuts.jsx)
+- **NOTE - POTENTIALLY OBSOLETE**: I realized after making this one, that it can probably be solved by simply holding `Ctrl` while marquee selecting the clips, which will make it select the cut points instead of the entire clip. Therefore you can just select the interior cuts then use the normal default transition keyboard shortcut to apply.
+- **Purpose:** Add a specified transition between touching selected clips, but only on their "interior" cuts, not the furthest left or right ends of selected clips
+- **Example:**
+<p align="center"><img width="800" alt="Timeline view of selected clips with transitions between them but not on the left and right ends" src="https://github.com/user-attachments/assets/631b9f01-d146-43ff-a1ec-4939b432e588"></p>
+
+## Make Timestamps From Text in Selected Graphics [⮺](Scripts/Premiere%20Pro/MakeTimestamps.jsx)
+- **Purpose:** Generates YouTube chapter timestamps using the text and starting points of selected graphics clips, and optionally includes timestamps of markers of chosen colors
+- **How To Use:**
+    1. Select any graphics clips on the timeline that contain the chapter titles
+    2. Run the script. It will show an alert box with the timestamps, which you can copy by focusing the dialog and pressing Ctrl+C
+- **Example:** 
+  <p align="center"><img width="400" src="https://github.com/user-attachments/assets/ae00709b-4eb4-411a-80d4-46dca71250fc"></p>
+
+
+## Copy/Paste Motion Properties [⮺](Scripts/Premiere%20Pro/CopyMotionAtCurrentTime.jsx)
+- **Purpose:** These two scripts work together to copy motion properties (position, scale, etc.) from one clip at the current playhead position and paste them to other clips WITHOUT copying keyframes - just the exact current values
+- **How To Use:**
+    1. Position playhead over the source clip, select it, and run `CopyMotionAtCurrentTime.jsx`
+    2. Select target clips and run `PasteMotionToClips.jsx` to apply the copied motion properties
+- **Example:**
+  <p align="center"><img width="800" src="https://github.com/user-attachments/assets/78e3268a-deed-4bfd-bcf8-e0e50f445a7f">
+
 
 ## Add Transitions To Internal Cuts [⮺](Scripts/Premiere%20Pro/Add_Transitions_Internal_Cuts.jsx)
 - **NOTE - POTENTIALLY OBSOLETE**: I realized after making this one, that it can probably be solved by simply holding `Ctrl` while marquee selecting the clips, which will make it select the cut points instead of the entire clip. Therefore you can just select the interior cuts then use the normal default transition keyboard shortcut to apply.
