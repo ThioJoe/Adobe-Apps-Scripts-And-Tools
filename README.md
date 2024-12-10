@@ -49,7 +49,7 @@
   <p align="center"><img width="400" src="https://github.com/user-attachments/assets/ae00709b-4eb4-411a-80d4-46dca71250fc"></p>
 
 
-## Copy/Paste Motion Properties [⮺](Scripts/Premiere%20Pro/CopyMotionAtCurrentTime.jsx)
+## Copy/Paste Motion Properties [⮺](Scripts/Premiere%20Pro/CopyMotionAtCurrentTime.jsx) / [⮺](Scripts/Premiere%20Pro/PasteMotionToClips.jsx)
 - **Purpose:** These two scripts work together to copy motion properties (position, scale, etc.) from one clip at the current playhead position and paste them to other clips WITHOUT copying keyframes - just the exact current values
 - **How To Use:**
     1. Position playhead over the source clip, select it, and run `CopyMotionAtCurrentTime.jsx`
