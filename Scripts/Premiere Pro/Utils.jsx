@@ -20,6 +20,10 @@
 //
 // Author Repo: https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools
 
+// Useful Objects:
+// QE DOM is at: $.global.qe
+//      Some functions at: $.global.qe.ea
+
 // Loads the "Extendscript ThioUtils" .dll external library
 var libFilename = "ThioUtils.dll";
 var libPath = File($.fileName).parent.fsName + "/include/" + libFilename;
@@ -30,6 +34,17 @@ try {
 } catch(e) {
     thioUtils = undefined;
     $.writeln("Error loading ThioUtils.dll: " + e);
+}
+
+app.enableQE();
+
+function GetObjects(collection) {
+    // Takes in an object which has multiple items, and returns an array of the items
+    var objects = []
+    for (var i = 0; i < collection.numItems; i++) {
+        objects.push(collection[i])
+    }
+    return objects;
 }
 
 // Returns the directory of the current running script as a File object.
@@ -195,6 +210,26 @@ function ticksToTimeObject(ticks) {
     return time;
 }
 
+function secondsToTimeObject(seconds) {
+    var time = new Time();
+    time.seconds = seconds;
+    return time;
+}
+
+// Convert a time object to a formatted string based on the sequence's frame rate and display format.
+function getTimecodeString_FromTimeObject(timeObj) {
+    var frameRateTicks = app.project.activeSequence.timebase;
+    var frameRateTimeObj = ticksToTimeObject(frameRateTicks);
+    var videoDisplayFormat = app.project.activeSequence.getSettings().videoDisplayFormat;
+    return timeObj.getFormatted(frameRateTimeObj, videoDisplayFormat);
+}
+
+// Convert frames to ticks based on the sequence's frame rate.
+function framesToTicks(frames) {
+    var frameRateTicks = app.project.activeSequence.timebase;
+    return frames * frameRateTicks;
+}
+
 // Given a specific timeline position in ticks, this calculates the corresponding position
 // relative to within the given clip object's source
 function ConvertTimelineTicksToSourceTicks(clipObject, timelineTicks) {
@@ -283,6 +318,37 @@ function getSelectedClipInfoQE() {
     return clipInfo;
 }
 
+function getQEClipFromVanillaClip(vanillaClip) {
+    var qeSequence = qe.project.getActiveSequence(0);
+    var trackIndex = vanillaClip.parentTrackIndex;
+    var trackItem = null;
+
+    if (vanillaClip.mediaType === "Video") {
+        trackItem = qeSequence.getVideoTrackAt(trackIndex);
+    } else if (vanillaClip.mediaType === "Audio") {
+        trackItem = qeSequence.getAudioTrackAt(trackIndex);
+    } else {
+        alert("Skipping Unknown Media Type: " + vanillaClip.mediaType);
+        return null;
+    }
+    
+    // Search through items in this track to find matching clip by start time
+    for (var j = 0; j < trackItem.numItems; j++) {
+        var qeClipObject = trackItem.getItemAt(j);
+        
+        // Skip if this item is null or undefined (empty space)
+        if (!qeClipObject) continue;
+        
+        // Match based on start time in ticks
+        if (qeClipObject.start.ticks === vanillaClip.start.ticks) {
+            return qeClipObject;
+        }
+    }
+    return null;
+}
+
+
+
 // Gathers information about the currently selected clips using the vanilla (non-QE) DOM.
 // Returns an array of custom objects with details like start/end ticks, internal in/out points, track, and node ID.
 function getSelectedClipInfoVanilla() {
@@ -324,10 +390,56 @@ function getSelectedClipInfoVanilla() {
     return clipInfo;
 }
 
+function convertToArray(obj) {
+    var array = [];
+    for (var i = 0; i < obj.length; i++) {
+        array.push(obj[i]);
+    }
+    // var array = [obj];
+    return array;
+}
+
+function doesAContainTrackB(a, b) {
+    // We have to compare by using start and end ticks and track index because this stupid language can't do object comparison
+    // If either isn't an array already, convert it to one
+    
+    var arr;
+    if (!Array.isArray(b)) {
+        arr = convertToArray(a);
+    }
+
+    for (var i = 0; i < arr.length; i++) {
+        if (arr[i].start.ticks === b.start.ticks && arr[i].end.ticks === b.end.ticks && arr[i].parentTrackIndex === b.parentTrackIndex) {
+            return true;
+        }
+    }
+}
+
+function isClipASameAsClipB(trackA, trackB) {
+    if (
+        trackA.start.ticks === trackB.start.ticks 
+        && trackA.end.ticks === trackB.end.ticks
+        && trackA.parentTrackIndex === trackB.parentTrackIndex
+        && trackA.nodeId === trackB.nodeId
+        && trackA.mediaType === trackB.mediaType
+        && trackA.type === trackB.type
+        && trackA.inPoint.ticks === trackB.inPoint.ticks
+        && trackA.outPoint.ticks === trackB.outPoint.ticks
+        ) 
+    {
+        return true;
+    }
+    return false;
+}
+
 // Plays a system beep sound if the external ThioUtils library is loaded, or shows an alert otherwise.
 // Useful for notifying the user of errors or important events without interrupting with an alert box.
 function playErrorBeep(fallbackAlertMessage) {
     if (typeof thioUtils !== 'undefined' && thioUtils !== null) {
+        // 0x00000000 = Default OK
+        // 0x00000010 = Default Error
+        // It supports any that are defined here but many are the same:
+        // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-messagebeep
         thioUtils.systemBeep();
     } else {
         alert(fallbackAlertMessage);
