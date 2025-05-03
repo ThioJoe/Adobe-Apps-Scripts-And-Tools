@@ -5,14 +5,16 @@
 // When using eval, it will use a working directory in the program files directory, so it is necessary to use the full path to the script.
 //       ---- Compact robust example at top of a script ----
 //
+// ---------------------- Include Utils.jsx ----------------------
 // function getCurrentScriptDirectory() { return (new File($.fileName)).parent; }
 // function joinPath() { return Array.prototype.slice.call(arguments).join('/'); }
 // function relativeToFullPath(relativePath) { return joinPath(getCurrentScriptDirectory(), relativePath); }
 // try { eval("#include '" + relativeToFullPath("Utils.jsx") + "'"); }
 // catch(e) {
-//     try { eval("#include '" + relativeToFullPath("includes/Utils.jsx") + "'"); }
-//     catch(e) { alert("Could not find Utils.jsx in the same directory as the script or in an includes folder."); } // Return optional here, if you're within a main() function
+//     try { var oErr = e; eval("#include '" + relativeToFullPath("includes/Utils.jsx") + "'"); }
+//     catch(e) { alert("Could not find Utils.jsx in the same directory as the script or in an includes folder." + "\n\nFull Errors: \n" + oErr + "\n" + e); } // Return optional here, if you're within a main() function
 // }
+// ---------------------------------------------------------------
 //
 // Random Notes:
 //    To clear console in Extendscript Toolkit, can use app.clc();  Or this line for automatic each run, regardless of target app:
@@ -101,6 +103,72 @@ function getTopTrackItemAtPlayhead(returnAsObject) {
         return -1; // Return -1 to indicate no track item found
     }
 }
+
+function getResolutionFromProjectItem(targetClip) {
+    var projectItem = targetClip.projectItem;
+    var xRes = -1;
+    var yRes = -1;
+
+    try {
+        var metadata = projectItem.getProjectMetadata(); // [cite: 425]
+
+        if (metadata) {
+            // Use string manipulation to find the VideoInfo tag content
+            var startTag = '<premierePrivateProjectMetaData:Column.Intrinsic.VideoInfo>';
+            var endTag = '</premierePrivateProjectMetaData:Column.Intrinsic.VideoInfo>';
+
+            var startIndex = metadata.indexOf(startTag);
+            if (startIndex !== -1) {
+                startIndex += startTag.length; // Move index past the start tag
+                var endIndex = metadata.indexOf(endTag, startIndex);
+                if (endIndex !== -1) {
+                    var videoInfo = metadata.substring(startIndex, endIndex);
+
+                    // Optional: Clean up to remove pixel aspect ratio like "(1.0)"
+                    var parIndex = videoInfo.indexOf('(');
+                    if (parIndex !== -1) {
+                        videoInfo = videoInfo.substring(0, parIndex).replace(/^\s+|\s+$/g, ''); // Trim whitespace
+
+                        // Split into dimensions
+                        var dimensions = videoInfo.split('x');
+
+                        if (dimensions.length === 2) {
+                            // Trim whitespace from each part and parse
+                            var xStr = dimensions[0].replace(/^\s+|\s+$/g, '');
+                            var yStr = dimensions[1].replace(/^\s+|\s+$/g, '');
+
+                            xRes = parseInt(xStr, 10);
+                            yRes = parseInt(yStr, 10);
+
+                            // Check if parsing was successful
+                            if (!isNaN(xRes) && !isNaN(yRes)) {
+                                // $.writeln("Parsed Resolution: x=" + xRes + ", y=" + yRes); // Debugging
+                                return { x: xRes, y: yRes };
+                            } else {
+                                $.writeln("Error: Failed to parse dimensions from '" + videoInfo + "'");
+                                return null; // Parsing failed
+                            }
+                        } else {
+                            $.writeln("Error: Could not split videoInfo '" + videoInfo + "' into two parts using 'x'.");
+                            return null; // Splitting failed
+                        }
+
+                        
+                    }
+                }
+            }
+             $.writeln("VideoInfo tag not found in metadata.");
+            return null; // Tag not found
+        } else {
+            $.writeln("Error: Could not retrieve project metadata for item: " + projectItem.name);
+            return null; // Metadata retrieval failed
+        }
+    } catch (e) {
+        $.writeln("Error processing projectItem metadata: " + e.toString());
+        return null;
+    }
+}
+
 
 // Returns an array of clip/track objects that have video clips intersecting the current playhead position.
 function GetAllVideoClipsUnderPlayhead_AsObjectArray() {
@@ -214,6 +282,49 @@ function secondsToTimeObject(seconds) {
     var time = new Time();
     time.seconds = seconds;
     return time;
+}
+
+function singleFrameTimeObject(sequence) {
+    var time = new Time();
+    // Sequence.timebase is the number of ticks per frame
+    var timebase = sequence.timebase;
+    time.seconds = 1 / sequence.timebase;
+    return time;
+}
+
+function convertTimeObjectToNearestFrame(sequence, timeObj) {
+    // The timebase is ticks per frame
+    var frameRateTicks = Number(sequence.timebase);
+    var currentTicks = Number(timeObj.ticks);
+    // Modulus the current ticks by the frame rate to get the remainder
+    var remainder = currentTicks % frameRateTicks;
+    var halfFrameduration = frameRateTicks / 2;
+    // If the remainder is less than half the frame rate, round down; otherwise, round up
+    if (remainder < halfFrameduration) {
+        currentTicks -= remainder; // Round down
+    } else {
+        currentTicks += (frameRateTicks - remainder); // Round up
+    }
+    // Create a new Time object with the rounded ticks
+    var roundedTime = ticksToTimeObject(currentTicks);
+    return roundedTime;
+}
+
+function getSortedClipsArray(clips) {
+    var sortedClips = [];
+    // If it's not already an array, convert it to one. Otherwise make a copy of it.
+    if (!Array.isArray(clips)) {
+        sortedClips = convertToArray(clips);
+    } else {
+        sortedClips = clips.slice(); // Make a copy of the array to avoid modifying the original
+    }
+
+    // Sort the clips based on their start ticks
+    sortedClips.sort(function(a, b) {
+        return Number(a.start.ticks) - Number(b.start.ticks);
+    });
+
+    return sortedClips;
 }
 
 // Convert a time object to a formatted string based on the sequence's frame rate and display format.
@@ -399,6 +510,30 @@ function convertToArray(obj) {
     return array;
 }
 
+// Check if an array of integers contains a specific integer
+function doesIntArrayAContainIntB(a, b) {
+    // If a has no length, return false immediately
+    if (a.length === 0) {
+        return false;
+    }
+
+    // Convert to array if not already and possible
+    var arr;
+    if (!Array.isArray(a)){
+        arr = convertToArray(a);
+    } else {
+        arr = a;
+    }
+
+    for (var i = 0; i < arr.length; i++) {
+        if (arr[i] === b) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
 function doesAContainTrackB(a, b) {
     // We have to compare by using start and end ticks and track index because this stupid language can't do object comparison
     // If either isn't an array already, convert it to one
@@ -440,9 +575,27 @@ function playErrorBeep(fallbackAlertMessage) {
         // 0x00000010 = Default Error
         // It supports any that are defined here but many are the same:
         // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-messagebeep
-        thioUtils.systemBeep();
+        thioUtils.systemBeep(0);
     } else {
         alert(fallbackAlertMessage);
+    }
+}
+
+// Checks if the active sequence duration in ticks is longer than javascript's MAX_SAFE_INTEGER and issues a warning if so.
+function checkWarnDuration(sequence) {
+    // If no sequence is passed, use the active sequence
+    if (typeof sequence === 'undefined' || sequence === undefined || sequence === null) {
+        sequence = app.project.activeSequence;
+    }
+
+    if (!sequence) {
+        alert("No active sequence found.");
+        return;
+    }
+
+    var durationTicks = sequence.end.ticks;
+    if (durationTicks > Number.MAX_SAFE_INTEGER) {
+        alert("Warning: The active sequence duration exceeds JavaScript's MAX_SAFE_INTEGER. Some operations may not work as expected.");
     }
 }
 

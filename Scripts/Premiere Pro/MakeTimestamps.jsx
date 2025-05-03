@@ -9,9 +9,14 @@
 //
 // ======================== USER SETTINGS =============================
 
+// Whether to add an "Intro" timestamp for 0:00
+addIntro = true
+
 // In addition to selected clips, you can get the timestamps of markers of chosen colors set below. See below for color indexes.
 // Put a comma separated list of the numbers between the brackets. Leave empty to not include any markers.
-markerColorsInclude = [ 3, 4 ]
+markerColorsInclude = [ 4 ]
+// Text to show for matched markers without a name (if applicable)
+coloredMarkerText = "[MARKER]"
 
 // Marker color must be represented as the index of the color in the marker panel
 // 0 = Green
@@ -22,14 +27,25 @@ markerColorsInclude = [ 3, 4 ]
 // 5 = White
 // 6 = Blue
 
-// Text to show for matched markers without a name (if applicable)
-coloredMarkerText = "[MARKER]"
-
-// Whether to add an "Intro" timestamp for 0:00
-addIntro = true
+// You can also set colors of markers that will be printed as a separate list at the end of the timestamps (comma separated list of colors above)
+markersColorsForSeparateTimestamps = [ 3 ]
+// Text to show in the heading for the separate timestamps
+alternateTimestampsText = "Ads @:"
+altTimestampsExactTimecode = true // Whether to show the exact timecode for the separate timestamps
 
 // ====================================================================
 // ====================================================================
+
+// ---------------------- Include Utils.jsx ----------------------
+function getCurrentScriptDirectory() { return (new File($.fileName)).parent; }
+function joinPath() { return Array.prototype.slice.call(arguments).join('/'); }
+function relativeToFullPath(relativePath) { return joinPath(getCurrentScriptDirectory(), relativePath); }
+try { eval("#include '" + relativeToFullPath("Utils.jsx") + "'"); }
+catch(e) {
+    try { eval("#include '" + relativeToFullPath("includes/Utils.jsx") + "'"); }
+    catch(e) { alert("Could not find Utils.jsx in the same directory as the script or in an includes folder."); } // Return optional here, if you're within a main() function
+}
+// ---------------------------------------------------------------
 
 function SortDictionaryByValue(dict) {
     var items = []
@@ -51,81 +67,12 @@ function SortDictionaryByValue(dict) {
     return sortedDict
 }
 
-function MakeTimestamps(addIntro, includeMarkerColors, coloredMarkerText) {
-
-    var activeSequence = app.project.activeSequence
-    var selectedVanillaClipObjects = activeSequence.getSelection()
-
-    var ui = 0 // "Unique Index" for making sure the keys are unique, append to key, will be removed later
-    // Function to create a unique suffix. Doing this since if we go above 9 there will be multiple digits and can't simply remove the last character
-    function uni(key) { 
-        return "~~" + ui + "~~"
-    }
-
-    // Dictionary of text in the titles and their start times
-    
-    var timestamps = {}
-    if (addIntro) {
-        timestamps["Intro" + uni()] = 0
-        ui++
-    }
-    
-    // For adding timestamps based on markers of certain colors
-    if (includeMarkerColors.length > 0) {
-        // Get the markers
-        var markers = activeSequence.markers
-
-        for (var i = 0; i < markers.numMarkers; i++) {
-            var marker = markers[i];
-            var markerTime = marker.start.seconds;
-            var markerName;
-            if (marker.name === "") {
-                markerName = coloredMarkerText;
-            } else {
-                markerName = marker.name;
-            }
-            
-            // Get the color of the marker, see if it matches any of the chosen included colors
-            var markerColor = marker.getColorByIndex(i);
-            for (var j = 0; j < includeMarkerColors.length; j++) {
-                if (markerColor === includeMarkerColors[j]) {
-                    timestamps[markerName + uni()] = markerTime;
-                    ui++;
-                }
-            }
-        }
-    }
-
-    //DEBUG TESTING
-    // timestamps["Test"] = 185.86
-    // timestamps["Test2"] = 185.14
-    // timestamps["Test3"] = 185.85
-
-    // For adding timestamps based on text in the selected graphics clips
-    for (var i = 0; i < selectedVanillaClipObjects.length; i++) {
-        var vanillaClip = selectedVanillaClipObjects[i];
-        startTime = vanillaClip.start.seconds
-
-        // Go through the components (effects) of the clip to find the text
-        for (var j = 0; j < vanillaClip.components.length; j++) {
-            var component = vanillaClip.components[j]
-            if (component.matchName === "AE.ADBE Text") {
-                textContent = component.instanceName
-                // Strip any newlines. NOTE: For some reason extendscript will replace \n with \r in strings silently, so we actually need to replace \r
-                textContentCleaned = textContent.replace(/\r\n|\r|\n/g, " ");
-                timestamps[textContentCleaned + uni()] = startTime
-                ui++
-                //$.writeln(textContentCleaned + " - " + startTime)
-            }
-        }
-    }
-
-    // Sort the dictionary by time
-    timestamps = SortDictionaryByValue(timestamps)
-
+function MakeTimeCodeMMSS(timestampsDict, noLabels) {
     var finalString = "\n"
-    for (var key in timestamps) {
-        timeSeconds = timestamps[key]
+
+    for (var key in timestampsDict) {
+
+        timeSeconds = timestampsDict[key]
 
         // Try to round down unless the number is very close to the next whole number
         var roundingThreshold = 0.85
@@ -166,10 +113,155 @@ function MakeTimestamps(addIntro, includeMarkerColors, coloredMarkerText) {
         timecode += ("0" + seconds.toString()).slice(-2);
 
         // Remove the unique index from the end of the key
-        var cleanedKey = key.replace(/~~\d+~~$/, "")
+        if (noLabels) {
+            var cleanedKey = ""
+            var separateor = ""
+        }
+        else {
+            var cleanedKey = key.replace(/~~\d+~~$/, "")
+            var separateor = " - "
+        }
+        
         
         // Add to the final string
-        finalString += timecode + " - " + cleanedKey + "\n"
+        finalString += timecode + separateor + cleanedKey + "\n"
+    }
+    return finalString;
+}
+
+function makeTimeCodeAsIs(timecodeFull, noLabels) {
+    var finalString = "\n"
+    if (noLabels) {
+        var separateor = ""
+    } else {
+        var separateor = " - "
+    }
+
+    for (var key in timecodeFull) {
+        var timecode = timecodeFull[key]
+        var cleanedKey = key.replace(/~~\d+~~$/, "")
+
+        // Determine if it's ; or : based on the timecode format
+        if (timecode.indexOf(":") !== -1) {
+            // Cut off the hours if there are none
+            var timecodeParts = timecode.split(":")
+            if (timecodeParts.length > 3) {
+                timecode = timecodeParts[1] + ":" + timecodeParts[2] + ":" + timecodeParts[3]
+            }
+        } else if (timecode.indexOf(";") !== -1) {
+            // Cut off the hours if there are none
+            var timecodeParts = timecode.split(";")
+            if (timecodeParts.length > 3) {
+                timecode = timecodeParts[1] + ":" + timecodeParts[2] + ";" + timecodeParts[3]
+            }
+        }
+
+        finalString += timecode + separateor + cleanedKey + "\n"
+    }
+    return finalString;
+}
+
+
+function MakeTimestamps(addIntro, includeMarkerColors, coloredMarkerText, markersOnly, noLabels, exactTimecode) {
+
+    var activeSequence = app.project.activeSequence
+
+    if (typeof markersOnly === 'undefined' || markersOnly === null || !markersOnly) {
+        var selectedVanillaClipObjects = activeSequence.getSelection()
+    } else {
+        var selectedVanillaClipObjects = []
+    }
+
+    if (typeof noLabels === 'undefined' || noLabels === null || !noLabels) {
+        var noLabels = false
+    } else {
+        var noLabels = true
+    }
+
+    if (typeof exactTimecode === 'undefined' || exactTimecode === null || !exactTimecode) {
+        var exactTimecode = false
+    } else {
+        var exactTimecode = true
+    }
+
+    var ui = 0 // "Unique Index" for making sure the keys are unique, append to key, will be removed later
+    // Function to create a unique suffix. Doing this since if we go above 9 there will be multiple digits and can't simply remove the last character
+    function uni(key) { 
+        return "~~" + ui + "~~"
+    }
+
+    // Dictionary of text in the titles and their start times
+    
+    var timestamps = {}
+    var timestampsFull = {}
+    if (addIntro) {
+        timestamps["Intro" + uni()] = 0
+        timestampsFull["Intro" + uni()] = 0
+        ui++
+    }
+    
+    // For adding timestamps based on markers of certain colors
+    if (includeMarkerColors.length > 0) {
+        // Get the markers
+        var markers = activeSequence.markers
+
+        for (var i = 0; i < markers.numMarkers; i++) {
+            var marker = markers[i];
+            var markerTime = marker.start.seconds;
+            var markerTimeFull = getTimecodeString_FromTimeObject(marker.start)
+
+            var markerName;
+            if (marker.name === "") {
+                markerName = coloredMarkerText;
+            } else {
+                markerName = marker.name;
+            }
+            
+            // Get the color of the marker, see if it matches any of the chosen included colors
+            var markerColor = marker.getColorByIndex(i);
+            for (var j = 0; j < includeMarkerColors.length; j++) {
+                if (markerColor === includeMarkerColors[j]) {
+                    timestamps[markerName + uni()] = markerTime;
+                    timestampsFull[markerName + uni()] = markerTimeFull;
+                    ui++;
+                }
+            }
+        }
+    }
+
+    //DEBUG TESTING
+    // timestamps["Test"] = 185.86
+    // timestamps["Test2"] = 185.14
+    // timestamps["Test3"] = 185.85
+
+    // For adding timestamps based on text in the selected graphics clips
+    for (var i = 0; i < selectedVanillaClipObjects.length; i++) {
+        var vanillaClip = selectedVanillaClipObjects[i];
+        startTime = vanillaClip.start.seconds
+
+        // Go through the components (effects) of the clip to find the text
+        for (var j = 0; j < vanillaClip.components.length; j++) {
+            var component = vanillaClip.components[j]
+            if (component.matchName === "AE.ADBE Text") {
+                textContent = component.instanceName
+                // Strip any newlines. NOTE: For some reason extendscript will replace \n with \r in strings silently, so we actually need to replace \r
+                textContentCleaned = textContent.replace(/\r\n|\r|\n/g, " ");
+                timestamps[textContentCleaned + uni()] = startTime
+                timestampsFull[textContentCleaned + uni()] = getTimecodeString_FromTimeObject(vanillaClip.start)
+                ui++
+                //$.writeln(textContentCleaned + " - " + startTime)
+            }
+        }
+    }
+
+    // Sort the dictionary by time
+    timestamps = SortDictionaryByValue(timestamps)
+    timestampsFull = SortDictionaryByValue(timestampsFull)
+
+    if (!exactTimecode) {
+        var finalString = MakeTimeCodeMMSS(timestamps, noLabels)
+    } else {
+        var finalString = makeTimeCodeAsIs(timestampsFull, noLabels)
     }
 
     return finalString
@@ -177,5 +269,14 @@ function MakeTimestamps(addIntro, includeMarkerColors, coloredMarkerText) {
 }
 
 var finalString = MakeTimestamps(true, markerColorsInclude, coloredMarkerText)
+
+if (markersColorsForSeparateTimestamps.length > 0) {
+    var additionalString = MakeTimestamps(false, markersColorsForSeparateTimestamps, "", true, true, true)
+    if (additionalString !== "") {
+        finalString += "\n" + alternateTimestampsText + additionalString
+    }
+}
+
+
 // Shows the final string in an alert box, which you can copy by focusing the dialog and pressing Ctrl+C
 alert(finalString)
