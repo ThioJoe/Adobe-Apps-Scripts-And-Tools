@@ -12,6 +12,9 @@
 // Whether to add an "Intro" timestamp for 0:00
 addIntro = true
 
+// Whether to show the exact timecode for the timestamps. If false, will show rounded down to the nearest second
+exactTimecode = false 
+
 // In addition to selected clips, you can get the timestamps of markers of chosen colors set below. See below for color indexes.
 // Put a comma separated list of the numbers between the brackets. Leave empty to not include any markers.
 markerColorsInclude = [ 4 ]
@@ -26,6 +29,7 @@ coloredMarkerText = "[MARKER]"
 // 4 = Yellow
 // 5 = White
 // 6 = Blue
+// 7 = Cyan
 
 // You can also set colors of markers that will be printed as a separate list at the end of the timestamps (comma separated list of colors above)
 markersColorsForSeparateTimestamps = [ 3 ]
@@ -47,7 +51,7 @@ catch(e) {
 }
 // ---------------------------------------------------------------
 
-function SortDictionaryByValue(dict) {
+function GetSortedArrayFromDictionary(dict) {
     var items = []
     for (var key in dict) {
         items.push([key, dict[key]]);
@@ -58,21 +62,25 @@ function SortDictionaryByValue(dict) {
         return first[1] - second[1];
     });
 
-    // Create a new array with the sorted items
-    var sortedDict = {}
-    for (var i = 0; i < items.length; i++) {
-        sortedDict[items[i][0]] = items[i][1];
-    }
-
-    return sortedDict
+    return items
 }
 
-function MakeTimeCodeMMSS(timestampsDict, noLabels) {
+function sortTimeObjectNestedArray(timeObjArray) {
+    // Sort the array based on the second element
+    timeObjArray.sort(function(first, second) {
+        return first[1].seconds - second[1].seconds;
+    });
+
+    return timeObjArray
+}
+
+function MakeTimeCodeMMSS(timestampsArray, noLabels) {
     var finalString = "\n"
 
-    for (var key in timestampsDict) {
+    for (var i = 0; i < timestampsArray.length; i++) {
 
-        timeSeconds = timestampsDict[key]
+        var key = timestampsArray[i][0]
+        var timeSeconds = timestampsArray[i][1]
 
         // Try to round down unless the number is very close to the next whole number
         var roundingThreshold = 0.85
@@ -129,7 +137,7 @@ function MakeTimeCodeMMSS(timestampsDict, noLabels) {
     return finalString;
 }
 
-function makeTimeCodeAsIs(timecodeFull, noLabels) {
+function makeTimeCodeAsIs(timeObjArray, noLabels) {
     var finalString = "\n"
     if (noLabels) {
         var separateor = ""
@@ -137,8 +145,11 @@ function makeTimeCodeAsIs(timecodeFull, noLabels) {
         var separateor = " - "
     }
 
-    for (var key in timecodeFull) {
-        var timecode = timecodeFull[key]
+    for (var i = 0; i < timeObjArray.length; i++) {
+        var key = timeObjArray[i][0]
+        var timeObj = timeObjArray[i][1]
+        var timecode = getTimecodeString_FromTimeObject(timeObj)
+
         var cleanedKey = key.replace(/~~\d+~~$/, "")
 
         // Determine if it's ; or : based on the timecode format
@@ -193,10 +204,15 @@ function MakeTimestamps(addIntro, includeMarkerColors, coloredMarkerText, marker
     // Dictionary of text in the titles and their start times
     
     var timestamps = {}
-    var timestampsFull = {}
+    var timestamps_timeObjs = []
     if (addIntro) {
         timestamps["Intro" + uni()] = 0
-        timestampsFull["Intro" + uni()] = 0
+
+        tempArray = []
+        tempArray[0] = "Intro" + uni()
+        tempArray[1] = secondsToTimeObject(0)
+        timestamps_timeObjs.push(tempArray)
+
         ui++
     }
     
@@ -208,7 +224,7 @@ function MakeTimestamps(addIntro, includeMarkerColors, coloredMarkerText, marker
         for (var i = 0; i < markers.numMarkers; i++) {
             var marker = markers[i];
             var markerTime = marker.start.seconds;
-            var markerTimeFull = getTimecodeString_FromTimeObject(marker.start)
+            var markerTimeObject = getTimecodeString_FromTimeObject(marker.start)
 
             var markerName;
             if (marker.name === "") {
@@ -222,7 +238,12 @@ function MakeTimestamps(addIntro, includeMarkerColors, coloredMarkerText, marker
             for (var j = 0; j < includeMarkerColors.length; j++) {
                 if (markerColor === includeMarkerColors[j]) {
                     timestamps[markerName + uni()] = markerTime;
-                    timestampsFull[markerName + uni()] = markerTimeFull;
+
+                    tempArray = []
+                    tempArray[0] = markerName + uni()
+                    tempArray[1] = marker.start
+                    timestamps_timeObjs.push(tempArray)
+
                     ui++;
                 }
             }
@@ -233,6 +254,8 @@ function MakeTimestamps(addIntro, includeMarkerColors, coloredMarkerText, marker
     // timestamps["Test"] = 185.86
     // timestamps["Test2"] = 185.14
     // timestamps["Test3"] = 185.85
+
+    testArray = []
 
     // For adding timestamps based on text in the selected graphics clips
     for (var i = 0; i < selectedVanillaClipObjects.length; i++) {
@@ -247,36 +270,42 @@ function MakeTimestamps(addIntro, includeMarkerColors, coloredMarkerText, marker
                 // Strip any newlines. NOTE: For some reason extendscript will replace \n with \r in strings silently, so we actually need to replace \r
                 textContentCleaned = textContent.replace(/\r\n|\r|\n/g, " ");
                 timestamps[textContentCleaned + uni()] = startTime
-                timestampsFull[textContentCleaned + uni()] = getTimecodeString_FromTimeObject(vanillaClip.start)
+                tempArray = []
+                tempArray[0] = textContentCleaned + uni()
+                tempArray[1] = vanillaClip.start
+                timestamps_timeObjs.push(tempArray)
                 ui++
-                //$.writeln(textContentCleaned + " - " + startTime)
             }
         }
     }
 
+    timestampsSorted = {}
+    timestampsFullSorted = {}
+
     // Sort the dictionary by time
-    timestamps = SortDictionaryByValue(timestamps)
-    timestampsFull = SortDictionaryByValue(timestampsFull)
+    timestampsSorted = GetSortedArrayFromDictionary(timestamps)
+    timestampsFullSorted = sortTimeObjectNestedArray(timestamps_timeObjs)
 
     if (!exactTimecode) {
-        var finalString = MakeTimeCodeMMSS(timestamps, noLabels)
+        var finalString = MakeTimeCodeMMSS(timestampsSorted, noLabels)
     } else {
-        var finalString = makeTimeCodeAsIs(timestampsFull, noLabels)
+        var finalString = makeTimeCodeAsIs(timestampsFullSorted, noLabels)
     }
 
     return finalString
 
 }
 
-var finalString = MakeTimestamps(true, markerColorsInclude, coloredMarkerText)
+var finalStringToPrint
+finalStringToPrint = MakeTimestamps(true, markerColorsInclude, coloredMarkerText, null, null, exactTimecode)
 
 if (markersColorsForSeparateTimestamps.length > 0) {
-    var additionalString = MakeTimestamps(false, markersColorsForSeparateTimestamps, "", true, true, true)
+    var additionalString = MakeTimestamps(false, markersColorsForSeparateTimestamps, "", true, true, altTimestampsExactTimecode)
     if (additionalString !== "") {
-        finalString += "\n" + alternateTimestampsText + additionalString
+        finalStringToPrint += "\n" + alternateTimestampsText + additionalString
     }
 }
 
 
 // Shows the final string in an alert box, which you can copy by focusing the dialog and pressing Ctrl+C
-alert(finalString)
+alert(finalStringToPrint)
