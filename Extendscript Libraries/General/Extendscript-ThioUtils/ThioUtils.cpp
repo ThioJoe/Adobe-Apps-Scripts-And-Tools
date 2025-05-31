@@ -10,8 +10,9 @@
 #include <windows.h>
 #include <mmsystem.h> // For PlaySound
 #include <Shlwapi.h>
+#include <pathcch.h> // For PathCchAppend. Using this instead of PathAppendW for safety and modernity.
 #pragma comment(lib, "Winmm.lib")
-#pragma comment(lib, "Shlwapi.lib") // Needed for PathAppendW
+#pragma comment(lib, "Pathcch.lib") // Needed for PathCchAppend
 // ---------------- Apple ----------------
 #elif defined(__APPLE__)
 #include <AudioToolbox/AudioToolbox.h>
@@ -146,7 +147,7 @@ extern "C" THIOUTILS_API long playSoundAlias(TaggedData* argv, long argc, Tagged
     DWORD dwFlags = 0;
     std::vector<wchar_t> widePathOrAlias;
 
-	// Explicitly reject strings containing path separators. We will only allow filenames
+    // Explicitly reject strings containing path separators. We will only allow filenames
     if (inputStr.find('\\') != std::string::npos || inputStr.find('/') != std::string::npos) {
         return kESErrBadArgumentList; // Error: Input string contains path separators
     }
@@ -163,7 +164,7 @@ extern "C" THIOUTILS_API long playSoundAlias(TaggedData* argv, long argc, Tagged
         if (GetWindowsDirectoryW(winDir, MAX_PATH) == 0) return kESErrConversion;
 
         wchar_t mediaPath[MAX_PATH];
-        if (!PathAppendW(winDir, L"Media")) return kESErrConversion;
+        if (FAILED(PathCchAppend(winDir, MAX_PATH, L"Media"))) return kESErrConversion;
 
         int fnWideCharCount = MultiByteToWideChar(CP_UTF8, 0, inputUtf8, -1, NULL, 0);
         if (fnWideCharCount == 0) return kESErrConversion;
@@ -171,7 +172,7 @@ extern "C" THIOUTILS_API long playSoundAlias(TaggedData* argv, long argc, Tagged
         if (MultiByteToWideChar(CP_UTF8, 0, inputUtf8, -1, wideFilename.data(), fnWideCharCount) == 0) return kESErrConversion;
 
         wcscpy_s(mediaPath, MAX_PATH, winDir);
-        if (!PathAppendW(mediaPath, wideFilename.data())) return kESErrConversion;
+        if (FAILED(PathCchAppend(mediaPath, MAX_PATH, wideFilename.data()))) return kESErrConversion;
 
         size_t finalLen = wcslen(mediaPath) + 1;
         widePathOrAlias.resize(finalLen);
@@ -192,7 +193,7 @@ extern "C" THIOUTILS_API long playSoundAlias(TaggedData* argv, long argc, Tagged
     PlaySoundW(widePathOrAlias.data(), NULL, dwFlags);
 
 #elif defined(__APPLE__)
-	// No implementation for Mac
+    // No implementation for Mac
 #endif
 
     return kESErrOK;
