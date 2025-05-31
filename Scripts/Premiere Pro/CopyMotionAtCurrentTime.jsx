@@ -76,6 +76,6 @@ for (var propertyName in propertiesObjectsDict) {
 
 //alert("Copied: " + propertyArray.length + " Properties");
 
-if (typeof thioUtils !== 'undefined' && thioUtils !== null) {
-    thioUtils.playSoundAlias("Windows Information Bar.wav")
+if (typeof ThioUtils !== 'undefined' && ThioUtils !== null) {
+    ThioUtils.playSoundAlias("Windows Information Bar.wav")
 }

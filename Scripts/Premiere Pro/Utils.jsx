@@ -26,17 +26,21 @@
 // QE DOM is at: $.global.qe
 //      Some functions at: $.global.qe.ea
 
-// Loads the "Extendscript ThioUtils" .dll external library
-var libFilename = "ThioUtils.dll";
-var libPath = File($.fileName).parent.fsName + "/include/" + libFilename;
-try {
-    if (typeof thioUtils === 'undefined' || thioUtils === null || thioUtils === undefined) {
-        var thioUtils = new ExternalObject("lib:" + libPath);
+try { eval("#include '" + relativeToFullPath("ThioUtils.jsx") + "'"); }
+catch(e) {
+    try { var oErr1 = e; eval("#include '" + relativeToFullPath("includes/ThioUtils.jsx") + "'"); }
+    catch(e) { 
+        // Try in "include" folder
+        try { var oErr2 = e; eval("#include '" + relativeToFullPath("include/ThioUtils.jsx") + "'"); }
+        catch(e) {
+            var errorString = + "\n\nFull Errors: \n" + oErr1 + "\n" + oErr2 + "\n" + e;
+            $.writeln("Could not find or load ThioUtils.jsx. Looked in same folder, and looked in any 'includes' and 'include' folders. ThioUtils.dll functionality will not be available" ); 
+            $.writeln(errorString);
+        }
     }
-} catch(e) {
-    thioUtils = undefined;
-    $.writeln("Error loading ThioUtils.dll: " + e);
 }
+
+// -------------------------------------------------------
 
 app.enableQE();
 
@@ -567,20 +571,6 @@ function isClipASameAsClipB(trackA, trackB) {
     return false;
 }
 
-// Plays a system beep sound if the external ThioUtils library is loaded, or shows an alert otherwise.
-// Useful for notifying the user of errors or important events without interrupting with an alert box.
-function playErrorBeep(fallbackAlertMessage) {
-    if (typeof thioUtils !== 'undefined' && thioUtils !== null) {
-        // 0x00000000 = Default OK
-        // 0x00000010 = Default Error
-        // It supports any that are defined here but many are the same:
-        // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-messagebeep
-        thioUtils.systemBeep(0);
-    } else {
-        alert(fallbackAlertMessage);
-    }
-}
-
 // Checks if the active sequence duration in ticks is longer than javascript's MAX_SAFE_INTEGER and issues a warning if so.
 function checkWarnDuration(sequence) {
     // If no sequence is passed, use the active sequence
@@ -602,4 +592,37 @@ function checkWarnDuration(sequence) {
 // Displays a simple alert message to confirm that Utils.jsx is successfully included and accessible.
 function testUtilsAlert(){
     alert("Hello from inside Utils.jsx!");
+}
+
+// ================================ Functions That Utilize ThioUtils.dll ================================
+
+function isThioUtilsLoaded() {
+    // Check if the ThioUtils library is loaded and available
+    return (typeof ThioUtils !== 'undefined' && ThioUtils !== null);
+}
+
+// Plays a system beep sound if the external ThioUtils library is loaded, or shows an alert otherwise.
+// Useful for notifying the user of errors or important events without interrupting with an alert box.
+function playErrorBeep(fallbackAlertMessage) {
+    if (isThioUtilsLoaded()) {
+        // 0x00000000 = Default OK
+        // 0x00000010 = Default Error
+        // It supports any that are defined here but many are the same:
+        // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-messagebeep
+        ThioUtils.systemBeep(0);
+    } else {
+        alert(fallbackAlertMessage);
+    }
+}
+
+// Copy the given text to the clipboard using the ThioUtils library if available.
+function copyToClipboard(text) {
+    if (isThioUtilsLoaded()) {
+        ThioUtils.copyTextToClipboard(text);
+    } else {
+        $.writeln("ThioUtils.dll not loaded. Can't use copyToClipboard function.");
+        alert("ThioUtils.dll not loaded. Can't use copyToClipboard function. Please ensure ThioUtils.jsx is included and ThioUtils.dll is available.");
+    }
+    
+    return false; // Return false if copy failed or ThioUtils is not loaded
 }
