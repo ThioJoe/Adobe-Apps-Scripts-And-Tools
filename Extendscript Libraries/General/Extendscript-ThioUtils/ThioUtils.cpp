@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>     // For std::wstring, std::string manipulations
 #include <algorithm>  // For std::transform
+#include <stdexcept>  // For std::bad_alloc
 
 // Include platform specific headers
 // ---------------- Windows ----------------
@@ -38,7 +39,7 @@ static bool findSubstringIgnoreCase(const std::string& str, const std::string& s
 
 extern "C" THIOUTILS_API char* ESInitialize(const TaggedData** argv, long argc)
 {
-    static char funcNames[] = "systemBeep_u,playSoundAlias_s";
+    static char funcNames[] = "systemBeep_u,playSoundAlias_s,copyTextToClipboard_s"; // Added new function
     return funcNames;
 }
 
@@ -196,5 +197,133 @@ extern "C" THIOUTILS_API long playSoundAlias(TaggedData* argv, long argc, Tagged
     // No implementation for Mac
 #endif
 
+    return kESErrOK;
+}
+
+
+/**
+ * @brief Copies the given string to the system clipboard.
+ * @param argv JavaScript arguments. Expects one string.
+ * @param argc Argument count. Should be 1.
+ * @param retval Return value.
+ * @return kESErrOK on success, or an error code.
+ *
+ * JavaScript Usage: externalLibrary.copyTextToClipboard("Text to copy");
+ */
+extern "C" THIOUTILS_API long copyTextToClipboard(TaggedData* argv, long argc, TaggedData* retval) {
+    retval->type = kTypeInteger; // Set the type once for all integer status code returns via retval
+
+    if (argc != 1) {
+        retval->data.intval = kESErrBadArgumentList;
+        return kESErrBadArgumentList;
+    }
+    if (argv[0].type != kTypeString) {
+        retval->data.intval = kESErrTypeMismatch;
+        return kESErrTypeMismatch;
+    }
+
+    const char* textToCopyUtf8 = argv[0].data.string;
+    if (textToCopyUtf8 == nullptr) {
+        retval->data.intval = kESErrBadArgumentList; // Null string pointer
+        return kESErrBadArgumentList;
+    }
+
+    // If debug version of binary, add test case for special string to purposefully throw errors
+    #ifdef _DEBUG
+        try {
+            // Check if the string starts with "__ERROR__" to trigger a test error. If there's an integer after "__ERROR__", it will be used as the error code
+            if (strncmp(textToCopyUtf8, "__ERROR__", 9) == 0) {
+                // Check if the string is exactly "__ERROR__" or has an integer after it
+                if (textToCopyUtf8[9] == '\0') {
+                    retval->data.intval = THIO_ERR_INTERNAL;
+                    return THIO_ERR_INTERNAL;
+                }
+                else {
+                    // Try to parse the integer after "__ERROR__"
+                    int errorCode = std::stoi(textToCopyUtf8 + 9);
+                    if (errorCode > -999 && errorCode < 99999) { // Just set a range as a sanity check
+                        retval->data.intval = errorCode;
+                        return errorCode;
+                    }
+                }
+            }
+        }
+        catch (...) {
+		    // Throw fatal error if parsing fails
+            retval->data.intval = kESErrInternal;
+		    return kESErrInternal;
+        }
+    #endif
+
+#ifdef _WIN32
+    // Convert UTF-8 string from ExtendScript to UTF-16 (WCHAR) for Windows API
+    int wideCharCount = MultiByteToWideChar(CP_UTF8, 0, textToCopyUtf8, -1, NULL, 0);
+    if (wideCharCount == 0) {
+        retval->data.intval = kESErrConversion; // kESErrConversion is positive, no change needed unless you want to map it too
+        return kESErrConversion;
+    }
+
+    std::vector<wchar_t> wideText;
+    try {
+        wideText.resize(wideCharCount); // Allocate memory for the vector
+    }
+    catch (const std::bad_alloc&) {
+        retval->data.intval = THIO_ERR_NO_MEMORY;
+        return THIO_ERR_NO_MEMORY;
+    }
+
+    if (MultiByteToWideChar(CP_UTF8, 0, textToCopyUtf8, -1, wideText.data(), wideCharCount) == 0) {
+        retval->data.intval = kESErrConversion; // kESErrConversion is positive
+        return kESErrConversion;
+    }
+
+    // Open the clipboard
+    if (!OpenClipboard(NULL)) {
+        retval->data.intval = THIO_ERR_CLIPBOARD_BUSY;
+        return THIO_ERR_CLIPBOARD_BUSY;
+    }
+
+    // Empty the clipboard
+    EmptyClipboard();
+
+    // Allocate global memory for the string
+    HGLOBAL hGlobal = GlobalAlloc(GMEM_MOVEABLE, wideText.size() * sizeof(wchar_t));
+    if (hGlobal == NULL) {
+        CloseClipboard();
+        retval->data.intval = THIO_ERR_NO_MEMORY;
+        return THIO_ERR_NO_MEMORY;
+    }
+
+    // Lock the memory and copy the string
+    LPVOID pGlobal = GlobalLock(hGlobal);
+    if (pGlobal == NULL) {
+        GlobalFree(hGlobal);
+        CloseClipboard();
+        retval->data.intval = THIO_ERR_CLIPBOARD_LOCK_FAILED;
+        return THIO_ERR_CLIPBOARD_LOCK_FAILED;
+    }
+    memcpy(pGlobal, wideText.data(), wideText.size() * sizeof(wchar_t));
+    GlobalUnlock(hGlobal);
+
+    // Set the clipboard data
+    if (SetClipboardData(CF_UNICODETEXT, hGlobal) == NULL) {
+        GlobalFree(hGlobal); // Free if SetClipboardData fails and system does not take ownership
+        CloseClipboard();
+        retval->data.intval = THIO_ERR_CLIPBOARD_SET_FAILED;
+        return THIO_ERR_CLIPBOARD_SET_FAILED;
+    }
+
+    // Note: Do not call GlobalFree(hGlobal) after a successful SetClipboardData, as the system now owns that memory.
+    // It will be freed when EmptyClipboard is called again or the clipboard is closed by another app.
+    CloseClipboard();
+    // If all Windows operations succeeded, we fall through to the final success return
+
+#elif defined(__APPLE__)
+    retval->data.intval = THIO_ERR_NOT_IMPLEMENTED; // Use your custom positive error code
+    return THIO_ERR_NOT_IMPLEMENTED;
+#endif
+
+    // Success case
+    retval->data.intval = kESErrOK;
     return kESErrOK;
 }
