@@ -37,9 +37,11 @@ static bool findSubstringIgnoreCase(const std::string& str, const std::string& s
 //-------------------------- Required Extendscript functions ---------------------------
 //--------------------------------------------------------------------------------------
 
+#define VERSION "1.1.0"
+
 extern "C" THIOUTILS_API char* ESInitialize(const TaggedData** argv, long argc)
 {
-    static char funcNames[] = "systemBeep_u,playSoundAlias_s,copyTextToClipboard_s"; // Added new function
+    static char funcNames[] = "systemBeep_u,playSoundAlias_s,copyTextToClipboard_s,getVersion_s";
     return funcNames;
 }
 
@@ -115,6 +117,12 @@ extern "C" THIOUTILS_API long systemBeep(TaggedData* argv, long argc, TaggedData
 #endif
 
     return kESErrOK; // Success
+}
+
+extern "C" THIOUTILS_API long getVersion(TaggedData* argv, long argc, TaggedData* retval) {
+    retval->type = kTypeString;
+    retval->data.string = _strdup(VERSION); // Allocate memory for the string
+    return kESErrOK;  // Return success code
 }
 
 /**
