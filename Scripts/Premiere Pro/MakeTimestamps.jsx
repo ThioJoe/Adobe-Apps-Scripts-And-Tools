@@ -361,6 +361,23 @@ if (markersColorsForSeparateTimestamps.length > 0) {
     }
 }
 
+// Trim the final string to remove any leading or trailing whitespace. There's no trim function in extendscript, so using regex
+finalStringToPrint = finalStringToPrint.replace(/^\s+|\s+$/g, "");
 
-// Shows the final string in an alert box, which you can copy by focusing the dialog and pressing Ctrl+C
-alert(finalStringToPrint)
+// if isThioUtilsLoaded() === true {
+if (isThioUtilsLoaded() === true) {
+    var stringAndMessage = finalStringToPrint + "\n\n" + "---------------------------\nCopy to clipboard?";
+
+    var choice = confirm(stringAndMessage, false, "Timestamps");
+    if (choice === true){
+        var copyResult = copyToClipboard(finalStringToPrint);
+        if (copyResult === false){
+            var fallbackMessage = "\n" + finalStringToPrint + "\n\n" + "---------------------------\nFailed to copy to clipboard. You can try again by focusing this dialog box and pressing Ctrl+C";
+            alert(fallbackMessage)
+        }
+    }
+} else {
+    // Shows the final string in an alert box, which you can copy by focusing the dialog and pressing Ctrl+C
+    var stringAndMessage = "\n" + finalStringToPrint + "\n\n" + "---------------------------\nCopy the text by focusing this dialog box and pressing Ctrl+C";
+    alert(stringAndMessage)
+}
