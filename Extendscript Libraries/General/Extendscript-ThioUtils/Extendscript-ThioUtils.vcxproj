@@ -148,6 +148,7 @@
     <ClInclude Include="Include\SoSharedLibDefs.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="ThioUtils.h" />
+    <ClInclude Include="VERSION.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ThioUtils.cpp" />

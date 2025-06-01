@@ -1,4 +1,5 @@
 #include "ThioUtils.h"
+#include "VERSION.h"
 #include "SoSharedLibDefs.h"
 #include <vector>
 #include <string>     // For std::wstring, std::string manipulations
@@ -36,8 +37,6 @@ static bool findSubstringIgnoreCase(const std::string& str, const std::string& s
 //--------------------------------------------------------------------------------------
 //-------------------------- Required Extendscript functions ---------------------------
 //--------------------------------------------------------------------------------------
-
-#define VERSION "1.1.0"
 
 extern "C" THIOUTILS_API char* ESInitialize(const TaggedData** argv, long argc)
 {
@@ -121,7 +120,7 @@ extern "C" THIOUTILS_API long systemBeep(TaggedData* argv, long argc, TaggedData
 
 extern "C" THIOUTILS_API long getVersion(TaggedData* argv, long argc, TaggedData* retval) {
     retval->type = kTypeString;
-    retval->data.string = _strdup(VERSION); // Allocate memory for the string
+    retval->data.string = _strdup(MYPROJECT_VERSION_STRING); // Allocate memory for the string
     return kESErrOK;  // Return success code
 }
 
