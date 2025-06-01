@@ -62,6 +62,11 @@
 
 # Extendscript Library
 
-Extendscript external dll libraries allow adding native javascript methods, functions, etc that can be used with Extendscript. I've created my own to add various functionality that wasn't built into extendscript. Currently there's just one method for playing a system error sound but I'll add more to it over time.
+Extendscript external dll libraries allow adding native javascript methods, functions, etc that can be used with Extendscript. I've created my own to add various functionality that wasn't built into extendscript.
+
+Current methods:
+- `ThioUtils.systemBeep(uint)`: Play one of the standard Windows sounds
+- `ThioUtils.playSoundAlias(string)`: Plays a system sound by alias or filename within the `C:\Windows\Media` folder
+- `ThioUtils.copyTextToClipboard(string)`: Places an inputted string on the Windows clipboard
 
 See this Wiki page for more details: https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools/wiki/Extendscript-ThioUtils
