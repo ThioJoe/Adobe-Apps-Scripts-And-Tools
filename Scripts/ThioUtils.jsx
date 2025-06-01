@@ -6,7 +6,7 @@
 var ThioUtils = (function() {
 
     // --- Private Members ---
-    const VERSION = "1.1.0"; // Version of this wrapper script. The minor version should match the DLL version.
+    const VERSION = "1.1.1.0"; // Version of this wrapper script. The minor version should match the DLL version.
 
     var thioUtilsDll = null; // Stores the ExternalObject instance
     var _isLoaded = false;
@@ -42,6 +42,10 @@ var ThioUtils = (function() {
     }
 
     // -------------------------------------------------------------------------
+
+    function getVersion(){
+        return VERSION;
+    }
 
     function getDllVersion() {
         var versionStr = "Unknown";
@@ -129,7 +133,7 @@ var ThioUtils = (function() {
     // ======================== Public API Object ========================
     var publicApi = {};
 
-    publicApi.version_script = "1.0.0"; // Version of this script wrapper
+    publicApi.version_script = getVersion(); // Version of this script wrapper
     publicApi.version_dll = getDllVersion(); // Version of the loaded DLL, if available
 
     /**
@@ -148,6 +152,15 @@ var ThioUtils = (function() {
     publicApi.systemBeep = function(soundType) {
         if (!publicApi.isLoaded()) {
             return -999;
+        }
+
+        if (typeof soundType === 'undefined' || soundType === null) {
+            soundType = 0; // Default to 0 if not provided
+        }
+
+        if (typeof soundType !== 'number') {
+            alert("ThioUtils.systemBeep: The sound type must be a number.");
+            return -1;
         }
 
         try {
@@ -222,9 +235,9 @@ var ThioUtils = (function() {
         // Reload the DLL if needed, or reinitialize the object
         try {
             if (thioUtilsDll !== null) {
-                thioUtilsDll.close(); // Close the existing instance
+                thioUtilsDll.unload(); // Close the existing instance
             }
-            thioUtilsDll = new ExternalObject("lib:" + _libFilename);
+            thioUtilsDll = new ExternalObject("lib:" + libPath);
             _isLoaded = (thioUtilsDll !== null);
         } catch (e) {
             _isLoaded = false;
