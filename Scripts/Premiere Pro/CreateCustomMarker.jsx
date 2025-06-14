@@ -16,6 +16,10 @@ var markerName = "";
 var markerComment = "";
 var markerType = 0; // See marker types below. Must be a number between 0 and 3
 
+// Specific to Web Link markers
+var webLinkURL = "https://example.com"; // URL for the Web Link marker
+var frameTarget = ""; // This refers to the <a> 'target' attribute, which is mostly obsolete so you can leave it empty. Apparently a "_blank" value could be used to explicitly open in a new tab, though.
+
 // Marker color: Must be represented as the index of the color in the marker panel
     // 0 = Green
     // 1 = Red
@@ -45,7 +49,7 @@ catch(e) {
 }
 // ---------------------------------------------------------------
 
-function  addMarkerAtLocation(startLocationSeconds, endLocationSeconds, color, markerName, markerComment, type) {
+function addMarkerAtLocation(startLocationSeconds, endLocationSeconds, color, markerName, markerComment, type, webLinkURL, frameTarget) {
 
     var activeSequence = app.project.activeSequence;
     if (activeSequence) {
@@ -78,7 +82,7 @@ function  addMarkerAtLocation(startLocationSeconds, endLocationSeconds, color, m
             } else if (type === 2) {
                 newMarker.setTypeAsSegmentation();
             } else if (type === 3) {
-                newMarker.setTypeAsWebLink();
+                newMarker.setTypeAsWebLink(webLinkURL, frameTarget);
             }
         }
     }
@@ -95,7 +99,7 @@ if (typeof app.project.activeSequence !== 'undefined' && app.project.activeSeque
         endLocationSeconds = startLocationSeconds + markerDurationSeconds;
     }
 
-    addMarkerAtLocation(startLocationSeconds, endLocationSeconds, color, markerName, markerComment, markerType);
+    addMarkerAtLocation(startLocationSeconds, endLocationSeconds, color, markerName, markerComment, markerType, webLinkURL, frameTarget);
 } else {
     alert("Error: No active sequence found.");
 }
