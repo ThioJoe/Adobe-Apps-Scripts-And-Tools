@@ -4,7 +4,7 @@
 // --------------------------------------------------------------
 // Define as (Major,Minor,Patch,Build) including the parentheses.
 // This tuple will be used to generate all version formats.
-#define MYPROJECT_VERSION_COMPONENTS_TUPLE (1,1,0,0)
+#define MYPROJECT_VERSION_COMPONENTS_TUPLE (1,1,1,0)
 // --------------------------------------------------------------
 
 // --- Helper macros (you generally don't need to touch these) ---
@@ -22,3 +22,9 @@
 // Define the final macros for use in the .rc file and C++ code
 #define MYPROJECT_VERSION_RC      APPLY_TUPLE_TO_MACRO(CREATE_VERSION_RC_FORMAT, MYPROJECT_VERSION_COMPONENTS_TUPLE)
 #define MYPROJECT_VERSION_STRING  APPLY_TUPLE_TO_MACRO(CREATE_VERSION_STRING_FORMAT, MYPROJECT_VERSION_COMPONENTS_TUPLE)
+
+// Define it as a long int for ESGetVersion
+#define MYPROJECT_VERSION_LONG    APPLY_TUPLE_TO_MACRO(CREATE_VERSION_LONG_FORMAT, MYPROJECT_VERSION_COMPONENTS_TUPLE)
+
+// Helper macro to create the long version format
+#define CREATE_VERSION_LONG_FORMAT(major, minor, patch, build) (major * 10000000L + minor * 100000L + patch * 1000L + build)

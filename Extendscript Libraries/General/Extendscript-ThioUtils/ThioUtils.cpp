@@ -45,10 +45,12 @@ extern "C" THIOUTILS_API char* ESInitialize(const TaggedData** argv, long argc)
 }
 
 extern "C" THIOUTILS_API void ESTerminate() {
+	// Free any resources if we had allocated any.
 }
 
 extern "C" THIOUTILS_API long ESGetVersion() {
-    return 0x1;
+	// Return the version of this library as a long integer.
+	return MYPROJECT_VERSION_LONG;
 }
 
 extern "C" THIOUTILS_API void ESFreeMem(void* p) {
