@@ -6,18 +6,26 @@
 //
 // Author Repo: https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools
 
+// ---------------------- Settings ----------------------
+// The file path can use either forward slashes, or double backslashes
+var mogrtFilePath = 'C:/Path/To/Whatever.mogrt';
 
-// ---------------------- Include Utils.jsx ----------------------
+// ------------------------------------------------------------------------------------------------------------
+// ---------------------- Include ThioUtils.jsx ----------------------
 function getCurrentScriptDirectory() { return (new File($.fileName)).parent; }
 function joinPath() { return Array.prototype.slice.call(arguments).join('/'); }
 function relativeToFullPath(relativePath) { return joinPath(getCurrentScriptDirectory(), relativePath); }
-try { eval("#include '" + relativeToFullPath("Utils.jsx") + "'"); }
+try { eval("#include '" + relativeToFullPath("ThioUtils.jsx") + "'"); }
 catch(e) {
-    try { eval("#include '" + relativeToFullPath("includes/Utils.jsx") + "'"); }
-    catch(e) { alert("Could not find Utils.jsx in the same directory as the script or in an includes folder."); } // Return optional here, if you're within a main() function
+    try { eval("#include '" + relativeToFullPath("includes/ThioUtils.jsx") + "'"); }
+    catch(e) { alert("Could not find ThioUtils.jsx in the same directory as the script or in an includes folder."); } // Return optional here, if you're within a main() function
 }
 // ---------------------------------------------------------------
 
+/**
+ * @param {Number} trackNumber 
+ * @param {string} mogrtFilePath 
+ */
 function importMoGRT(trackNumber, mogrtFilePath) {
     var activeSeq = app.project.activeSequence;
     if (activeSeq) {
@@ -30,10 +38,10 @@ function importMoGRT(trackNumber, mogrtFilePath) {
             var moComp = newTrackItem.getMGTComponent();
             if (moComp) {
                 var params = moComp.properties;
-                
             }
         }
-    } 
+    }
+    return false;
 }
 
 var topTrackIndex = getTopTrackItemAtPlayhead();
@@ -42,8 +50,5 @@ if (topTrackIndex < 0) {
 }
 var trackNumber = topTrackIndex + 1;
 
-// ---------------------- Settings And Run ----------------------
-// The file path can use either forward slashes, or double backslashes
-var mogrtFilePath = 'C:/Path/To/Whatever.mogrt';
-
+// Run
 importMoGRT(trackNumber, mogrtFilePath);

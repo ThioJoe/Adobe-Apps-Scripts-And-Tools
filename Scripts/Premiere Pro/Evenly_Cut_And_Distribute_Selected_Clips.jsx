@@ -4,31 +4,31 @@
 // How To use: 1. Select any number of clips as long as they are all on the same track, and there are no unselected clips between them
 //             2. Run the script.
 //
-// Requires the "Utils.jsx" file also from the repo to be in the same directory as this script, or in an "includes" folder in the same directory
+// Requires the "ThioUtils.jsx" file also from the repo to be in the same directory as this script, or in an "includes" folder in the same directory
 //
 // Author Repo: https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools
 
-// ---------------------- Include Utils.jsx ----------------------
+// ---------------------- Include ThioUtils.jsx ----------------------
 function getCurrentScriptDirectory() { return (new File($.fileName)).parent; }
 function joinPath() { return Array.prototype.slice.call(arguments).join('/'); }
 function relativeToFullPath(relativePath) { return joinPath(getCurrentScriptDirectory(), relativePath); }
-try { eval("#include '" + relativeToFullPath("Utils.jsx") + "'"); }
+try { eval("#include '" + relativeToFullPath("ThioUtils.jsx") + "'"); }
 catch(e) {
-    try { var oErr = e; eval("#include '" + relativeToFullPath("includes/Utils.jsx") + "'"); }
-    catch(e) { alert("Could not find Utils.jsx in the same directory as the script or in an includes folder." + "\n\nFull Errors: \n" + oErr + "\n" + e); } // Return optional here, if you're within a main() function
+    try { var oErr = e; eval("#include '" + relativeToFullPath("includes/ThioUtils.jsx") + "'"); }
+    catch(e) { alert("Could not find ThioUtils.jsx in the same directory as the script or in an includes folder." + "\n\nFull Errors: \n" + oErr + "\n" + e); } // Return optional here, if you're within a main() function
 }
 // ---------------------------------------------------------------
 
 // If true, the clips will effectively be purely trimmed/untrimmed to their new placements so the inPoint and Outpoint within the clips stay in place
 // If false, the start point of the clips will be moved to the new position
-keepContentRelativeToTimeline = true;
+var keepContentRelativeToTimeline = true;
 
 function main() {
     var activeSequence = app.project.activeSequence;
     if (!activeSequence) { alert("No active sequence."); return; }
 
     // Use convertToArray to get a JS array, easier to work with
-    var selectedClips = convertToArray(activeSequence.getSelection());
+    var selectedClips = ThioUtils.convertToArray(activeSequence.getSelection());
 
     // ----------- START: Validation Block -----------
     if (selectedClips.length < 2) {
@@ -54,7 +54,7 @@ function main() {
     }
 
     // Sort the selected clips by start time
-    selectedClips = getSortedClipsArray(selectedClips);
+    selectedClips = ThioUtils.getSortedClipsArray(selectedClips);
 
     // Get the start point (seconds) of the first selected clip, and the end point (seconds) of the last selected clip, AFTER sorting to define the total span for validation purposes.
     var startPoint = selectedClips[0].start.seconds;
@@ -76,7 +76,7 @@ function main() {
          alert("Error accessing track collection or invalid track index."); return;
     }
     var allClipsOnTrack = trackCollection[firstTrackIndex].clips;
-    var allClipsOnTrackArray = convertToArray(allClipsOnTrack);
+    var allClipsOnTrackArray = ThioUtils.convertToArray(allClipsOnTrack);
 
     // Custom comparison function to check if a clip is in the selected array (more robust than indexOf)
     function isClipSelected(clipToCheck, selectedArray) {
@@ -97,7 +97,7 @@ function main() {
         // Check if the clip *overlaps* or is *within* the time span defined by the selection's earliest start and latest end
         if (currentClipOnTrack.end.seconds > startPoint && currentClipOnTrack.start.seconds < endPoint) {
              // Now check if this overlapping/contained clip is actually one of the selected ones
-            if (!doesAContainTrackB(selectedClips, currentClipOnTrack)) {
+            if (!ThioUtils.doesAContainTrackB(selectedClips, currentClipOnTrack)) {
                 var infoAboutCurrentClip = "At least one unselected clip: " + currentClipOnTrack.name + "\n" +
                     "Start: " + currentClipOnTrack.start.seconds + "\n" +
                     "End: " + currentClipOnTrack.end.seconds + "\n";
@@ -146,8 +146,8 @@ function main() {
         var clipEndTick = currentTick + thisClipDurationTicks;
 
         try {
-            var newStartTime = ticksToTimeObject(currentTick);
-            var newEndTime = ticksToTimeObject(clipEndTick);
+            var newStartTime = ThioUtils.ticksToTimeObject(currentTick);
+            var newEndTime = ThioUtils.ticksToTimeObject(clipEndTick);
 
             // Get the change in start time in ticks
             var startTimeChangeTicks = Number(newStartTime.ticks) - Number(currentClip.start.ticks);
@@ -160,7 +160,7 @@ function main() {
             // If keepContentRelativeToTimeline is true, adjust the inPoint
             if (keepContentRelativeToTimeline) {
                 var newInPointTicks = Number(currentClip.inPoint.ticks) + startTimeChangeTicks;
-                var newInPointTime = ticksToTimeObject(newInPointTicks);
+                var newInPointTime = ThioUtils.ticksToTimeObject(newInPointTicks);
                 currentClip.inPoint = newInPointTime; // Set the inPoint to the new time
             }
             

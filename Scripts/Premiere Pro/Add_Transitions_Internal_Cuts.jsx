@@ -3,7 +3,7 @@
 //
 // How To use: Look at the bottom of the script for the variable settings
 //
-// Requires the "Utils.jsx" file also from the repo to be in the same directory as this script, or in an "includes" folder in the same directory
+// Requires the "ThioUtils.jsx" file also from the repo to be in the same directory as this script, or in an "includes" folder in the same directory
 //
 // Author Repo: https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools
 
@@ -25,14 +25,14 @@ var durationStringEnds = "0:24"; // The duration of the transition to use on the
 
 // ============================================================================
 
-// ---------------------- Include Utils.jsx ----------------------
+// ---------------------- Include ThioUtils.jsx ----------------------
 function getCurrentScriptDirectory() { return (new File($.fileName)).parent; }
 function joinPath() { return Array.prototype.slice.call(arguments).join('/'); }
 function relativeToFullPath(relativePath) { return joinPath(getCurrentScriptDirectory(), relativePath); }
-try { eval("#include '" + relativeToFullPath("Utils.jsx") + "'"); }
+try { eval("#include '" + relativeToFullPath("ThioUtils.jsx") + "'"); }
 catch(e) {
-    try { eval("#include '" + relativeToFullPath("includes/Utils.jsx") + "'"); }
-    catch(e) { alert("Could not find Utils.jsx in the same directory as the script or in an includes folder."); } // Return optional here, if you're within a main() function
+    try { eval("#include '" + relativeToFullPath("includes/ThioUtils.jsx") + "'"); }
+    catch(e) { alert("Could not find ThioUtils.jsx in the same directory as the script or in an includes folder."); } // Return optional here, if you're within a main() function
 }
 // ---------------------------------------------------------------
 
@@ -47,7 +47,7 @@ function addTransitionsBetweenClips(clipsQE, transitionName, durationString, ali
         var clipQEObject = clipQEDict.fullQEClipObject;
         var clipQEIndex = clipQEDict.clipItemIndexQE;
         var trackIndex = clipQEDict.trackIndex;
-        var trackItem = qe.project.getActiveSequence(0).getVideoTrackAt(trackIndex);
+        var trackItem = qe.project.getActiveSequence().getVideoTrackAt(trackIndex);
         var numItemsOnTrack = trackItem.numItems;
         
         // Check both sides for valid clips (Ensure it each cut is between two clips)
@@ -93,8 +93,8 @@ function addTransitionsBetweenClips(clipsQE, transitionName, durationString, ali
     }
 }
 
-// Get selected clips via QE DOM, not vanilla API. This function is in the included Utils.jsx file.
-var selectedClips = getSelectedClipInfoQE();
+// Get selected clips via QE DOM, not vanilla API. This function is in the included ThioUtils.jsx file.
+var selectedClipsQE = ThioUtils.getSelectedClipInfoQE();
 
 // ---------------------- Run ----------------------
-addTransitionsBetweenClips(selectedClips, transitionName, durationString, alignment, transitionNameEnds, durationStringEnds, addTransitionOnEnds);
+addTransitionsBetweenClips(selectedClipsQE, transitionName, durationString, alignment, transitionNameEnds, durationStringEnds, addTransitionOnEnds);

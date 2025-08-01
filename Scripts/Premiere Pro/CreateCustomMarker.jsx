@@ -38,14 +38,14 @@ var frameTarget = ""; // This refers to the <a> 'target' attribute, which is mos
 
 // ====================================================================
 
-// ---------------------- Include Utils.jsx ----------------------
+// ---------------------- Include ThioUtils.jsx ----------------------
 function getCurrentScriptDirectory() { return (new File($.fileName)).parent; }
 function joinPath() { return Array.prototype.slice.call(arguments).join('/'); }
 function relativeToFullPath(relativePath) { return joinPath(getCurrentScriptDirectory(), relativePath); }
-try { eval("#include '" + relativeToFullPath("Utils.jsx") + "'"); }
+try { eval("#include '" + relativeToFullPath("ThioUtils.jsx") + "'"); }
 catch(e) {
-    try { eval("#include '" + relativeToFullPath("includes/Utils.jsx") + "'"); }
-    catch(e) { alert("Could not find Utils.jsx in the same directory as the script or in an includes folder."); } // Return optional here, if you're within a main() function
+    try { eval("#include '" + relativeToFullPath("includes/ThioUtils.jsx") + "'"); }
+    catch(e) { alert("Could not find ThioUtils.jsx in the same directory as the script or in an includes folder."); } // Return optional here, if you're within a main() function
 }
 // ---------------------------------------------------------------
 

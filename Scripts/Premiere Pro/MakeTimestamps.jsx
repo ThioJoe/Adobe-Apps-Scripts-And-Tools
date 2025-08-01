@@ -10,16 +10,16 @@
 // ======================== USER SETTINGS =============================
 
 // Whether to add an "Intro" timestamp for 0:00
-addIntro = true
+var addIntro = true
 
 // Whether to show the exact timecode for the timestamps. If false, will show rounded down to the nearest second
-exactTimecode = false 
+var exactTimecode = false 
 
 // In addition to selected clips, you can get the timestamps of markers of chosen colors set below. See below for color indexes.
 // Put a comma separated list of the numbers between the brackets. Leave empty to not include any markers.
-markerColorsInclude = [ 4 ]
+var markerColorsInclude = [ 4 ]
 // Text to show for matched markers without a name (if applicable)
-coloredMarkerText = "[MARKER]"
+var coloredMarkerText = "[MARKER]"
 
 // Marker color must be represented as the index of the color in the marker panel
 // 0 = Green
@@ -32,32 +32,35 @@ coloredMarkerText = "[MARKER]"
 // 7 = Cyan
 
 // You can also set colors of markers that will be printed as a separate list at the end of the timestamps (comma separated list of colors above)
-markersColorsForSeparateTimestamps = [ 3 ]
+var markersColorsForSeparateTimestamps = [ 3 ]
 // Text to show in the heading for the separate timestamps
-alternateTimestampsText = "Ads @:"
-altTimestampsExactTimecode = true // Whether to show the exact timecode for the separate timestamps
+var alternateTimestampsText = "Ads @:"
+var altTimestampsExactTimecode = true // Whether to show the exact timecode for the separate timestamps
+var showCommentsForAltTimestamps = true // If the alt timestamps have text comments, they'll be shown next to them, otherwise only the timecodes will be shown
 
 // --- Fine Tuning Prferences ---
 
 // Whether to use a semicolon within dropframe timecodes, or always use a colon
-useSemicolonInDropframe = false // If true, will use semicolon in dropframe timecodes, otherwise will always use colon
+var useSemicolonInDropframe = false // If true, will use semicolon in dropframe timecodes, otherwise will always use colon
 
 // Whether to always include the full HH:MM:SS:frame timecode for exact timecode. Otherwise hours will be excluded if there are no hours in the timecode, 
 //      and minutes will be shown without leading 0 if there are no hours and no minutes greater than 10 in any of the timecode results
-alwaysFullTimecode = false
+var alwaysFullTimecode = false
 
 // ====================================================================
 // ====================================================================
 
-// ---------------------- Include Utils.jsx ----------------------
+// ---------------------- Include ThioUtils.jsx ----------------------
 function getCurrentScriptDirectory() { return (new File($.fileName)).parent; }
 function joinPath() { return Array.prototype.slice.call(arguments).join('/'); }
 function relativeToFullPath(relativePath) { return joinPath(getCurrentScriptDirectory(), relativePath); }
-try { eval("#include '" + relativeToFullPath("Utils.jsx") + "'"); }
+try { eval("#include '" + relativeToFullPath("ThioUtils.jsx") + "'"); }
 catch(e) {
-    try { eval("#include '" + relativeToFullPath("includes/Utils.jsx") + "'"); }
-    catch(e) { alert("Could not find Utils.jsx in the same directory as the script or in an includes folder."); } // Return optional here, if you're within a main() function
-}
+    try { var e1=e; eval("#include '" + relativeToFullPath("includes/ThioUtils.jsx") + "'"); } // Check Utils folder
+    catch(e) { var e2=e; try { eval("#include '" + relativeToFullPath("../ThioUtils.jsx") + "'"); } // Check parent directory
+    catch (e) { var e3=e; try { eval("#include '" + relativeToFullPath("../includes/ThioUtils.jsx") + "'"); } // Check parent includes folder
+    catch (e) { var e4=e; alert("Could not find ThioUtils.jsx in current dir, includes folder, or parent dir." + "\n\nAll Attempt Errors: \n"+e1+"\n"+e2+"\n"+e2+"\n"+e3+"\n"+e4); } // Return optional here, if you're within a main() function
+}}}
 // ---------------------------------------------------------------
 
 function GetSortedArrayFromDictionary(dict) {
@@ -130,18 +133,20 @@ function MakeTimeCodeMMSS(timestampsArray, noLabels) {
         timecode += ("0" + seconds.toString()).slice(-2);
 
         // Remove the unique index from the end of the key
+        var cleanedKey;
+        var separator = "";
+
         if (noLabels) {
-            var cleanedKey = ""
-            var separateor = ""
+            cleanedKey = ""
+        } else {
+            cleanedKey = key.replace(/~~\d+~~$/, "")
+            if (cleanedKey !== "") {
+                separator = " - "
+            }
         }
-        else {
-            var cleanedKey = key.replace(/~~\d+~~$/, "")
-            var separateor = " - "
-        }
-        
         
         // Add to the final string
-        finalString += timecode + separateor + cleanedKey + "\n"
+        finalString += timecode + separator + cleanedKey + "\n"
     }
     return finalString;
 }
@@ -153,7 +158,7 @@ function getMaxOfPart(timeObjArray, partIndex) {
     for (var i = 0; i < timeObjArray.length; i++) {
         // The timecode generated by premiere should always have an hours part 
         var timeObj = timeObjArray[i][1]
-        var timecodeStr = getTimecodeString_FromTimeObject(timeObj)
+        var timecodeStr = ThioUtils.getTimecodeString_FromTimeObject(timeObj)
 
         if (timecodeStr.indexOf(":") !== -1) {
             var timecodeParts = timecodeStr.split(":")
@@ -174,18 +179,18 @@ function getMaxOfPart(timeObjArray, partIndex) {
 
 function makeTimeCodeAsIs(timeObjArray, noLabels) {
     var finalString = "\n"
-    if (noLabels) {
-        var separateor = ""
-    } else {
-        var separateor = " - "
-    }
 
     for (var i = 0; i < timeObjArray.length; i++) {
         var key = timeObjArray[i][0]
         var timeObj = timeObjArray[i][1]
-        var timecode = getTimecodeString_FromTimeObject(timeObj)
+        var timecode = ThioUtils.getTimecodeString_FromTimeObject(timeObj)
 
-        var cleanedKey = key.replace(/~~\d+~~$/, "")
+        var cleanedKey;
+        if (noLabels) {
+            cleanedKey = ""
+        } else {
+            cleanedKey = key.replace(/~~\d+~~$/, "")
+        }
 
         // Determine if it's ; or : based on the timecode format, split on the correct character
         var frameChar;
@@ -227,7 +232,16 @@ function makeTimeCodeAsIs(timeObjArray, noLabels) {
             }
         }
 
-        finalString += reassembledTimecode + separateor + cleanedKey + "\n"
+        var separator = "";
+        if (noLabels) {
+            separator = ""
+        } else {
+            if (cleanedKey !== "") {
+                separator = " - "
+            }
+        }
+
+        finalString += reassembledTimecode + separator + cleanedKey + "\n"
     }
     return finalString;
 }
@@ -236,23 +250,22 @@ function makeTimeCodeAsIs(timeObjArray, noLabels) {
 function MakeTimestamps(addIntro, includeMarkerColors, coloredMarkerText, markersOnly, noLabels, exactTimecode) {
 
     var activeSequence = app.project.activeSequence
+    var selectedVanillaClipObjects = []
 
     if (typeof markersOnly === 'undefined' || markersOnly === null || !markersOnly) {
-        var selectedVanillaClipObjects = activeSequence.getSelection()
-    } else {
-        var selectedVanillaClipObjects = []
+        selectedVanillaClipObjects = activeSequence.getSelection()
     }
 
     if (typeof noLabels === 'undefined' || noLabels === null || !noLabels) {
-        var noLabels = false
+        noLabels = false
     } else {
-        var noLabels = true
+        noLabels = true
     }
 
     if (typeof exactTimecode === 'undefined' || exactTimecode === null || !exactTimecode) {
-        var exactTimecode = false
+        exactTimecode = false
     } else {
-        var exactTimecode = true
+        exactTimecode = true
     }
 
     var ui = 0 // "Unique Index" for making sure the keys are unique, append to key, will be removed later
@@ -268,9 +281,9 @@ function MakeTimestamps(addIntro, includeMarkerColors, coloredMarkerText, marker
     if (addIntro) {
         timestamps["Intro" + uni()] = 0
 
-        tempArray = []
+        var tempArray = []
         tempArray[0] = "Intro" + uni()
-        tempArray[1] = secondsToTimeObject(0)
+        tempArray[1] = ThioUtils.secondsToTimeObject(0)
         timestamps_timeObjs.push(tempArray)
 
         ui++
@@ -284,7 +297,7 @@ function MakeTimestamps(addIntro, includeMarkerColors, coloredMarkerText, marker
         for (var i = 0; i < markers.numMarkers; i++) {
             var marker = markers[i];
             var markerTime = marker.start.seconds;
-            var markerTimeObject = getTimecodeString_FromTimeObject(marker.start)
+            var markerTimeObject = ThioUtils.getTimecodeString_FromTimeObject(marker.start)
 
             var markerName;
             if (marker.name === "") {
@@ -310,20 +323,18 @@ function MakeTimestamps(addIntro, includeMarkerColors, coloredMarkerText, marker
         }
     }
 
-    testArray = []
-
     // For adding timestamps based on text in the selected graphics clips
     for (var i = 0; i < selectedVanillaClipObjects.length; i++) {
         var vanillaClip = selectedVanillaClipObjects[i];
-        startTime = vanillaClip.start.seconds
+        var startTime = vanillaClip.start.seconds
 
         // Go through the components (effects) of the clip to find the text
         for (var j = 0; j < vanillaClip.components.length; j++) {
             var component = vanillaClip.components[j]
             if (component.matchName === "AE.ADBE Text") {
-                textContent = component.instanceName
+                var textContent = component.instanceName
                 // Strip any newlines. NOTE: For some reason extendscript will replace \n with \r in strings silently, so we actually need to replace \r
-                textContentCleaned = textContent.replace(/\r\n|\r|\n/g, " ");
+                var textContentCleaned = textContent.replace(/\r\n|\r|\n/g, " ");
                 timestamps[textContentCleaned + uni()] = startTime
                 tempArray = []
                 tempArray[0] = textContentCleaned + uni()
@@ -334,8 +345,8 @@ function MakeTimestamps(addIntro, includeMarkerColors, coloredMarkerText, marker
         }
     }
 
-    timestampsSorted = {}
-    timestampsFullSorted = {}
+    var timestampsSorted = {}
+    var timestampsFullSorted = {}
 
     // Sort the dictionary by time
     timestampsSorted = GetSortedArrayFromDictionary(timestamps)
@@ -354,8 +365,9 @@ function MakeTimestamps(addIntro, includeMarkerColors, coloredMarkerText, marker
 var finalStringToPrint
 finalStringToPrint = MakeTimestamps(true, markerColorsInclude, coloredMarkerText, null, null, exactTimecode)
 
+// For the secondary set of timestamps, if any
 if (markersColorsForSeparateTimestamps.length > 0) {
-    var additionalString = MakeTimestamps(false, markersColorsForSeparateTimestamps, "", true, true, altTimestampsExactTimecode)
+    var additionalString = MakeTimestamps(false, markersColorsForSeparateTimestamps, "", true, !showCommentsForAltTimestamps, altTimestampsExactTimecode)
     if (additionalString !== "") {
         finalStringToPrint += "\n" + alternateTimestampsText + additionalString
     }
@@ -365,12 +377,12 @@ if (markersColorsForSeparateTimestamps.length > 0) {
 finalStringToPrint = finalStringToPrint.replace(/^\s+|\s+$/g, "");
 
 // if isThioUtilsLoaded() === true {
-if (isThioUtilsLoaded() === true) {
+if (ThioUtils.isThioUtilsLibLoaded() === true) {
     var stringAndMessage = finalStringToPrint + "\n\n" + "---------------------------\nCopy to clipboard?";
 
     var choice = confirm(stringAndMessage, false, "Timestamps");
     if (choice === true){
-        var copyResult = copyToClipboard(finalStringToPrint);
+        var copyResult = ThioUtils.copyToClipboard(finalStringToPrint);
         if (copyResult === false){
             var fallbackMessage = "\n" + finalStringToPrint + "\n\n" + "---------------------------\nFailed to copy to clipboard. You can try again by focusing this dialog box and pressing Ctrl+C";
             alert(fallbackMessage)
