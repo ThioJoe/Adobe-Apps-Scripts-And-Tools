@@ -68,35 +68,23 @@ catch (e) {
 
 app.enableQE();
 
-var ThioUtils = {
-    /**
-     * Converts a collection of items (like TrackItem collections) into a standard JavaScript array.
-     * @template T
-     * @param {object|Array<T>} collection A collection of items, such as a TrackItem collection or an array-like object.
-     * @returns {Array<T>} An array containing the items from the collection.
-     */
-    collectionToArray: function (collection) {
-        // Takes in an object which has multiple items, and returns an array of the items
-        var objects = []
-        for (var i = 0; i < collection.numItems; i++) {
-            objects.push(collection[i])
-        }
-        return objects;
-    },
+var ThioUtils = (function () {
+    // ======================== Public API Object ========================
+    var pub = {}; // Public object
 
     // Returns the directory of the current running script as a File object.
     // Useful for referencing other scripts or resources relative to this script's location.
-    getCurrentScriptDirectory: function () {
+    pub.getCurrentScriptDirectory = function () {
         return getCurrentScriptDirectory();
-    },
+    };
 
     // Joins multiple path segments into a single path string separated by '/'.
     /** @type {(...args: string[]) => string} */
-    joinPath: joinPath,
+    pub.joinPath = joinPath,
 
     // Given a relative path, returns a full path by joining it with the directory of the current script.
     /** @type {(relativePath: string) => string} */
-    relativeToFullPath: relativeToFullPath,
+        pub.relativeToFullPath = relativeToFullPath,
 
 
     /**
@@ -114,7 +102,7 @@ var ThioUtils = {
      * @param {boolean} [returnAsObject=false] If true, returns the TrackItem object; if false, returns the track index.
      * @returns {TrackItem | number | null} The top track item, its track index, or a value indicating not found.
      */
-    getTopTrackItemAtPlayhead: function (returnAsObject) {
+    pub.getTopTrackItemAtPlayhead = function (returnAsObject) {
         var seq = app.project.activeSequence;
         var currentTime = Number(seq.getPlayerPosition().ticks);
         var topTrackItem = null;
@@ -155,14 +143,14 @@ var ThioUtils = {
         } else {
             return -1; // Return -1 to indicate no track item found
         }
-    },
+    };
 
     /**
      * Gets the video resolution from a clip's project item metadata.
      * @param {TrackItem|ProjectItem} targetItem The clip on the timeline to inspect.
      * @returns {{x: number, y: number} | null} An object containing the x and y resolution, or null if it cannot be determined.
      */
-    getResolutionFromProjectItem: function (targetItem) {
+    pub.getResolutionFromProjectItem = function (targetItem) {
         var projectItem = null;
         // If it's not already a project item, get the project item from the clip
         if (targetItem instanceof TrackItem) {
@@ -232,14 +220,14 @@ var ThioUtils = {
             $.writeln("Error processing projectItem metadata: " + e.toString());
             return null;
         }
-    },
+    };
 
 
     /**
      * Returns an array of clip/track objects that have video clips intersecting the current playhead position.
      * @returns {TrackItem[]} An array of TrackItems (clips) that are under the playhead position in the active sequence.
      */
-    GetAllVideoClipsUnderPlayhead_AsObjectArray: function () {
+    pub.GetAllVideoClipsUnderPlayhead_AsObjectArray = function () {
         var seq = app.project.activeSequence;
         var currentTime = Number(seq.getPlayerPosition().ticks);
 
@@ -260,23 +248,23 @@ var ThioUtils = {
             }
         }
         return clipsArray;
-    },
+    };
 
     /**
      * Retrieves the current playhead position, relative to the timeline, as a tick value.
      * @returns {Number} The current playhead position in ticks.
      */
-    GetPlayheadPosition_WithinTimeline_AsTicks: function () {
+    pub.GetPlayheadPosition_WithinTimeline_AsTicks = function () {
         // var seq = app.project.activeSequence;
         return Number(app.project.activeSequence.getPlayerPosition().ticks);
-    },
+    };
 
     /**
      * Retrieves an array of currently selected video clips from the active sequence.
      * Filters out any non-video items and alerts if no video clips are selected.
      * @returns {TrackItem[]} An array of selected video clips in the active sequence.
      */
-    GetSelectedVideoClips: function () {
+    pub.GetSelectedVideoClips = function () {
         var selectedClipsRaw = app.project.activeSequence.getSelection();
         var selectedClips = [];
 
@@ -292,13 +280,13 @@ var ThioUtils = {
         }
 
         return selectedClips;
-    },
+    };
 
     /**
      * Gets all the sequences in the current project as an array of QESequence objects
      * @returns {QESequence[]}
      */
-    getAllQESequencesInProject: function () {
+    pub.getAllQESequencesInProject = function () {
         // Get the items in the bin, and if any of them are also bins, recursively get the rest
         /**
          * @param {Number} numBins 
@@ -384,13 +372,13 @@ var ThioUtils = {
         }
 
         return QESequenceArray;
-    },
+    };
 
     /**
      * Gets an array of selected sequences from the Project panel view
      * @returns {Sequence[]}
      */
-    getSelectedSequencesArray: function () {
+    pub.getSelectedSequencesArray = function () {
         var selectedProjectItems = app.getCurrentProjectViewSelection();
         var allSequences = app.project.sequences;
         var selectedSequenceProjItemArray = [];
@@ -414,14 +402,14 @@ var ThioUtils = {
             }
         }
         return selectedSequenceArray;
-    },
+    };
 
     /**
      * Gets the corresponding QESequence object for a given regular Sequence object
      * @param {Sequence} vanillaSequence
      * @returns {QESequence|null}
      */
-    getQESequenceFromVanilla: function(vanillaSequence) {
+    pub.getQESequenceFromVanilla = function(vanillaSequence) {
         var allQESequences = ThioUtils.getAllQESequencesInProject();
         for (var i = 0; i < allQESequences.length; i++) {
             var qeSequence = allQESequences[i];
@@ -430,14 +418,14 @@ var ThioUtils = {
             }
         }
         return null; // Return null if no match is found
-    },
+    };
 
     /**
      * Gets the corresponding regular Sequence object for a given QESequence object
      * @param {QESequence} qeSequence
      * @returns {Sequence|null}
      */
-    getVanillaSequenceFromQE: function(qeSequence) {
+    pub.getVanillaSequenceFromQE = function(qeSequence) {
         var seqGuid = qeSequence.guid;
         var allSequences = app.project.sequences;
 
@@ -450,13 +438,13 @@ var ThioUtils = {
 
         // If none found return null
         return null;
-    },
+    };
 
     /** 
      * Gets the selected sequences in the project panel as QESequence objects
      * @returns {QESequence[]}
     */
-    getSelectedSequencesQE: function() {
+    pub.getSelectedSequencesQE = function() {
         var selectedSequences = ThioUtils.getSelectedSequencesArray();
 
         // Find the selected sequences as QESequence objects by comparing the vanilla sequence "sequenceID" property and QE "guid" property
@@ -471,15 +459,15 @@ var ThioUtils = {
         }
 
         return selectedQESequences;
-    },
+    };
 
     /**
-     * Retrieves a specific effect component from a clip object by its display name.
+     * Retrieves a specific effect component from a clip object by its display name. Components are the highest level expandable thing.
      * @param {TrackItem} clipObj The clip object to search within.
      * @param {string} componentName The display name of the component (effect) to find.
      * @returns {Component|null} The component object if found, otherwise null.
      */
-    GetClipEffectComponent_AsObject: function (clipObj, componentName) {
+    pub.GetClipEffectComponent_AsObject = function (clipObj, componentName) {
         // Find specified component
         var component = null;
         for (var i = 0; i < clipObj.components.numItems; i++) {
@@ -489,7 +477,23 @@ var ThioUtils = {
             }
         }
         return component;
-    },
+    };
+
+    /**
+     * Retrieves all the components of a given clip
+     * @param {TrackItem} clipObj The clip object to retrieve components from.
+     * @returns {Component[]} An array of Component objects representing all components of the clip.
+     */
+    pub.GetEffectComponentArray = function (clipObj) {
+        var componentArray = [];
+        if (clipObj && clipObj.components) {
+            for (var i = 0; i < clipObj.components.numItems; i++) {
+                componentArray.push(clipObj.components[i]);
+            }
+            
+        }
+        return componentArray;
+    };
 
     // Get a specific property from a component, or all of them. Returns an array of property objects
     /**
@@ -498,7 +502,7 @@ var ThioUtils = {
      * @param {string} propertyName The display name of the property to retrieve (optional).
      * @returns {ComponentParam[]} An single-item array with the property matching the specified name, or all properties if no name is specified.
      */
-    GetEffectComponentPropertyArray: function (component, propertyName) {
+    pub.GetEffectComponentPropertyArray = function (component, propertyName) {
         var propertyArray = [];
         var getAll = false;
 
@@ -517,47 +521,207 @@ var ThioUtils = {
             }
         }
         return propertyArray;
-    },
+    };
 
     /**
-     * Calculates the current position of the playhead, relative to within a selected clip's source media, as ticks.
-     * This requires exactly one selected clip and checks if the playhead is within it.
-     * @param {Boolean} useAudioTrack If true, the selected clip must be audio; otherwise, it must be video.
-     * @returns {Number|null} The playhead position in ticks relative to the source media of the selected clip, or null if conditions are not met.
+     * Get a single property of the specified component
+     * @param {Component} component 
+     * @param {string} propertyName 
+     * @return {ComponentParam|null} The property object if found, otherwise null.
      */
-    GetPlayheadPosition_WithinSource_AsTicks: function (useAudioTrack) {
-        var selectedClipsRaw = app.project.activeSequence.getSelection();
-        var selectedClips = [];
-
-        // Filter out clips that are not of the correct type
-        for (var i = 0; i < selectedClipsRaw.length; i++) {
-            if ((!useAudioTrack && selectedClipsRaw[i].mediaType === "Video") || (useAudioTrack && selectedClipsRaw[i].mediaType === "Audio")) {
-                selectedClips.push(selectedClipsRaw[i]);
+    pub.GetEffectComponentProperty = function (component, propertyName) {
+        for (var j = 0; j < component.properties.numItems; j++) {
+            var property = component.properties[j];
+            if (property.displayName.toLowerCase() === propertyName) {
+                property;
             }
         }
+        return null;
+    };
 
-        var playheadTimelinePositionTicks = Number(app.project.activeSequence.getPlayerPosition().ticks);
-        if (!selectedClips.length || selectedClips.length > 1) {
-            alert("You must select exactly 1 clip in the timeline to use this function.");
+    /**
+     * Input an effect name (such as 'Motion') and a property name within that effect (such as 'Scale') to get that property (Scale)
+     * @param {TrackItem} clipObj 
+     * @param {String} effectName 
+     * @param {String} effectPropertyName
+     * @return {ComponentParam|null} The property object if found, otherwise null.
+     */
+    pub.GetEffectComponentAndProperty = function (clipObj, effectName, effectPropertyName) {
+        // Get the component (effect) by name
+        var component = this.GetClipEffectComponent_AsObject(clipObj, effectName);
+        if (!component) {
+            alert("Effect '" + effectName + "' not found on the selected clip.");
+            return null;
+        }
+
+        // Get the property from the component
+        var properties = this.GetEffectComponentPropertyArray(component, effectPropertyName);
+        if (properties.length === 0) {
+            alert("Property '" + effectPropertyName + "' not found in effect '" + effectName + "'.");
+            return null;
+        }
+
+        return properties[0]; // Return the first matching property
+    };
+
+    /**
+     * Removes motion keyframes from a clip or array of clips and sets all the motion properties to non-time-varying. Optionally set new static values to current playhead position
+     * @param {TrackItem|TrackItem[]|TrackItemCollection} clips The clip to reset
+     * @param {boolean} maintainMotionValuesAtPlayhead If true, the current values at the playhead will be maintained, otherwise they will be reset to their default values.
+     */
+    pub.removeMotionKeyframes = function(clips, maintainMotionValuesAtPlayhead) {
+        // Make an array. Even if it's just one it will just be an array of one.
+        var clipsArray = ThioUtils.convertToArray(clips);
+
+        // First check all the clips to ensure there's none outside the playhead if that needs to be used
+        if (maintainMotionValuesAtPlayhead && ThioUtils.checkIfPlayheadIsInClip(clipsArray) == false) {
+            alert("removeMotionKeyframes Error:\nYou've set to use the playhead position for the new motion values, but the playhead position is not within at least one of the clips.");
             return;
         }
 
-        // Ensure the playhead is within the selected clip
-        var selectedClip = selectedClips[0];
+        var playheadTimelinePos = Number(app.project.activeSequence.getPlayerPosition().ticks)
+
+        /** --------------------------Local function --------------------------
+         * @param {TrackItem} clip The clip to reset 
+         */
+        function removeMotionKeyframesFromSingleClip(clip) {
+            var components = ThioUtils.GetEffectComponentArray(clip)
+            var motionComponent = null;
+
+            // Need to get the internal position of each individual clip
+            var internalPlayheadPos = null;
+            if (maintainMotionValuesAtPlayhead) {
+                internalPlayheadPos = ThioUtils.GetPlayheadPosition_WithinSource_AsTicks(clip, playheadTimelinePos, false);
+            }
+
+            for (var i = 0; i < components.length; i++) {
+                var component = components[i];
+                if (component.displayName === "Motion") {
+                    motionComponent = component;
+
+                    var motionProperties = ThioUtils.GetEffectComponentPropertyArray(component, null);
+                    for (var j = 0; j < motionProperties.length; j++) {
+                        var effectProp = motionProperties[j];
+                        var currentPosValue = null;
+
+                        // If it's already not time varying then skip
+                        if (!effectProp.isTimeVarying()) {
+                            continue
+                        }
+
+                        // Store the value ahead of time if we're meant to set it back as the static value after
+                        if (internalPlayheadPos != null) {
+                            var internalTimeObj = ThioUtils.ticksToTimeObject(internalPlayheadPos);
+                            currentPosValue = effectProp.getValueAtTime(internalTimeObj);
+                        }
+
+                        effectProp.setTimeVarying(false, true);
+
+                        // Restore the value
+                        if (currentPosValue != null) {
+                            effectProp.setValue(currentPosValue, true);
+                        }
+                    }
+                }
+            }
+        }
+        // -------------------------- End Local Function --------------------------
+
+        for (var i = 0; i < clipsArray.length; i++) {
+            var clip = clipsArray[i];
+            if (clip.mediaType === "Video") {
+                removeMotionKeyframesFromSingleClip(clip);
+            }
+        }
+    };
+
+    /**
+     * Calculates the current position of the playhead, relative to within a selected clip's source media, as ticks. If no TrackItem is provided, it will use the selected clip.
+     * @overload
+     * @param {Boolean} useAudioTrack If true, the selected clip must be audio; otherwise, it must be video.
+     * @param {Boolean=} noAlertsOnError If true, will just return null without showing an alert.
+     * @returns {Number|null} The playhead position in ticks relative to the source media of the selected clip, or null if conditions are not met.
+     */
+
+    /**
+     * Calculates the current position of the playhead, relative to within a selected clip's source media, as ticks. If no TrackItem is provided, it will use the selected clip.
+     * @overload
+     * @param {TrackItem} clip The clip to get the playhead position within.
+     * @param {Number|null=} playheadTimelinePositionTicks If you want to specify the timeline playhead position instead of getting it during the function.
+     * @param {Boolean=} noAlertsOnError If true, will just return null without showing an alert.
+     * @returns {Number|null} The playhead position in ticks relative to the source media of the selected clip, or null if conditions are not met.
+     */
+    pub.GetPlayheadPosition_WithinSource_AsTicks = function (arg1, arg2, arg3) {
+        var clip;
+        var useAudioTrack;
+        var noAlertsOnError;
+        var playheadTimelinePositionTicks = null;
+
+        // ---------- Overload checking ------------
+        if (typeof arg1 === 'object' && arg1 !== null && typeof arg1.mediaType !== 'undefined') {
+            // Signature: (clip, useAudioTrack, noAlertsOnError)
+            clip = arg1;
+            noAlertsOnError = arg3;
+            // Handle whether they provided the playhead position or not
+            if (typeof arg2 === 'undefined' || arg2 === undefined || arg2 === null) {
+                playheadTimelinePositionTicks = null;
+            } else {
+                playheadTimelinePositionTicks = arg2;
+            }
+        } else {
+            clip = null; // No clip provided, will use selection
+            useAudioTrack = arg1;
+            noAlertsOnError = arg2;
+            playheadTimelinePositionTicks = null;
+        }
+        // ----------------------------------------
+
+        if (typeof noAlertsOnError === 'undefined' || noAlertsOnError === undefined || noAlertsOnError === null) {
+            noAlertsOnError = false; // Default to showing alerts
+        }
+        
+        if (playheadTimelinePositionTicks == null) {
+            playheadTimelinePositionTicks = Number(app.project.activeSequence.getPlayerPosition().ticks);
+        }
+
+        // If no clip is provided, use the currently selected clip in the timeline.
+        if (clip == null) {
+            var selectedClipsRaw = app.project.activeSequence.getSelection();
+            var selectedClips = [];
+
+            // Filter out clips that are not of the correct type
+            for (var i = 0; i < selectedClipsRaw.length; i++) {
+                if ((!useAudioTrack && selectedClipsRaw[i].mediaType === "Video") || (useAudioTrack && selectedClipsRaw[i].mediaType === "Audio")) {
+                    selectedClips.push(selectedClipsRaw[i]);
+                }
+            }
+
+            if (!selectedClips.length || selectedClips.length > 1) {
+                if (!noAlertsOnError) { alert("GetPlayheadPosition_WithinSource_AsTicks Error: You must select exactly 1 clip in the timeline to use this function."); }
+                return null;
+            }
+
+            // Ensure the playhead is within the selected clip
+            var selectedClip = selectedClips[0];
+        } else {
+            selectedClip = clip
+        }
+
         if (playheadTimelinePositionTicks < Number(selectedClip.start.ticks) || playheadTimelinePositionTicks > Number(selectedClip.end.ticks)) {
-            alert("The playhead is not within the selected clip.");
-            return;
+            if (!noAlertsOnError) { alert("GetPlayheadPosition_WithinSource_AsTicks Error: The playhead is not within the selected clip."); }
+            return null;
         }
 
         return this.ConvertTimelineTicksToSourceTicks(selectedClip, playheadTimelinePositionTicks);
-    },
+    };
+
 
     /**
      * Trims the start of a clip without moving the remaining part of the clip.
      * @param {TrackItem} clip 
      * @param {Number} trimSeconds The number of seconds to trim from the start of the clip. A negative value will extend the clip earlier.
      */
-    trimClipStart: function (clip, trimSeconds) {
+    pub.trimClipStart = function (clip, trimSeconds) {
         var sequenceFrameRate = new FrameRate();
         sequenceFrameRate.ticksPerFrame = Number(app.project.activeSequence.timebase); // Set the current frame rate to the sequence timebase
 
@@ -579,14 +743,14 @@ var ThioUtils = {
         startTimeObj.ticks = startTimeTickTime.ticks; // Update the start time seconds to the aligned time
 
         clip.start = startTimeObj; // Set the new start time
-    },
+    };
 
     /**
      * Trims the end of a clip without moving the remaining part of the clip.
      * @param {TrackItem} clip 
      * @param {Number} trimSeconds The number of seconds to trim from the end of the clip. A negative value will extend the clip further.
      */
-    trimClipEnd: function (clip, trimSeconds) {
+    pub.trimClipEnd = function (clip, trimSeconds) {
         var sequenceFrameRate = new FrameRate();
         sequenceFrameRate.ticksPerFrame = Number(app.project.activeSequence.timebase); // Set the current frame rate to the sequence timebase
 
@@ -608,7 +772,7 @@ var ThioUtils = {
         endTimeObj.ticks = endTimeTickTime.ticks; // Update the end time seconds to the aligned time
 
         clip.end = endTimeObj; // Set the new end time
-    },
+    };
 
     /**
      * Ripple deletes all empty items from a specified track in the active sequence. 
@@ -616,7 +780,7 @@ var ThioUtils = {
      * @param {Number} trackIndex The index of the track to delete empty items from.
      * @param {("audio"|"video")} trackType Whether the track is audio or video.
      */
-     rippleDeleteEmptySpaceOnTrack: function (trackIndex, trackType) {
+    pub.rippleDeleteEmptySpaceOnTrack = function (trackIndex, trackType) {
         var qeSequence = qe.project.getActiveSequence();
 
         var trackToDo;
@@ -645,7 +809,7 @@ var ThioUtils = {
                 break;
             }
         }
-    },
+    };
 
     /**
      * Check if there are any clips on the timeline in a time range on a specified video track.
@@ -655,7 +819,7 @@ var ThioUtils = {
      * @param {"video"|"audio"} mediaType
      * @returns {Boolean|TrackItem} Return the clip if one is in the range, otherwise false.
      */
-    checkIfAnyClipsInTimeRangeOnTrack: function (startTimeObj, endTimeObj, trackIndex, mediaType) {
+    pub.checkIfAnyClipsInTimeRangeOnTrack = function (startTimeObj, endTimeObj, trackIndex, mediaType) {
         var activeSeq = app.project.activeSequence;
         if (!activeSeq) return false;
         if (mediaType !== "video" && mediaType !== "audio") {
@@ -681,72 +845,84 @@ var ThioUtils = {
         }
 
         return false; // No clips in the range
-    },
+    };
 
     /**
      * Check if the current playhead position is within the time range of a given clip object on the timeline.
-     * @param {TrackItem} clipObject The clip object to check against.
+     * @param {TrackItem|TrackItemCollection|TrackItem[]} clipToCheck The clip object to check against.
      * @return {Boolean} True if the playhead is within the clip's time range, false otherwise.
      */
-    checkIfPlayheadIsInClip: function (clipObject) {
+    pub.checkIfPlayheadIsInClip = function (clipToCheck) {
         var activeSeq = app.project.activeSequence;
-        if (!activeSeq) return false;
+        if (!activeSeq) {
+            alert("checkIfPlayheadIsInClip Error: No active sequence found.")
+            return false;
+        }
 
         var playheadPositionTicks = Number(activeSeq.getPlayerPosition().ticks);
-        var clipStartTicks = Number(clipObject.start.ticks);
-        var clipEndTicks = Number(clipObject.end.ticks);
+        var clipsArray = ThioUtils.convertToArray(clipToCheck);
+        var anyBadFound = false;
 
-        // Check if the playhead is within the clip's time range
-        if (playheadPositionTicks >= clipStartTicks && playheadPositionTicks <= clipEndTicks) {
-            return true; // Playhead is within the clip's time range
-        } else {
-            return false; // Playhead is not within the clip's time range
+        for (var i = 0; i < clipsArray.length; i++) {
+            
+            var clipStartTicks = Number(clipsArray[i].start.ticks);
+            var clipEndTicks = Number(clipsArray[i].end.ticks);
+
+            // Check if the playhead is within the clip's time range
+            if (playheadPositionTicks >= clipStartTicks && playheadPositionTicks <= clipEndTicks) {
+                // // Playhead is within the clip's time range, do nothing
+            } else {
+                anyBadFound = true; // Playhead is not within the clip's time range
+                break
+            }
         }
-    },
+
+        return !anyBadFound; // Return true if no clips were found that the playhead is not in       
+    };
 
     /**
      * Converts a given tick count to seconds based on a known TICKS_PER_SECOND value.
      * @param {Number|string} ticks
      * @returns {Number} The equivalent time in seconds.
      */
-    ticksToSeconds: function (ticks) {
+    pub.ticksToSeconds = function (ticks) {
         var TICKS_PER_SECOND = 254016000000;
         return Number(ticks) / TICKS_PER_SECOND;
-    },
+    };
 
     /**
      * Converts a given tick count to a Time object.
      * @param {Number|string} ticks The number of ticks to convert.
      * @returns {Time} A Time object with the seconds property set.
      */
-    ticksToTimeObject: function (ticks) {
+    pub.ticksToTimeObject = function (ticks) {
         var time = new Time();
         time.ticks = String(ticks);
         return time;
-    },
+    };
 
     /**
      * Converts a given number of seconds to a Time object.
      * @param {Number} seconds The number of seconds to convert.
      * @return {Time} A Time object with the seconds property set.
      */
-    secondsToTimeObject: function (seconds) {
+    pub.secondsToTimeObject = function (seconds) {
         var time = new Time();
         time.seconds = seconds;
         return time;
-    },
+    };
 
     /**
      * Creates a Time object representing a single frame duration based on the sequence's timebase.
      * @param {Sequence} sequence The sequence object to get the timebase from.
      * @return {Time} A Time object representing the duration of a single frame in seconds.
      */
-    singleFrameTimeObject: function (sequence) {
+    pub.singleFrameTimeObject = function (sequence) {
         var time = new Time();
         // Sequence.timebase is the number of ticks per frame
         time.ticks = sequence.timebase
         return time;
-    },
+    };
 
     /**
      * Updates a Time object to the nearest frame based on the sequence's timebase
@@ -754,7 +930,7 @@ var ThioUtils = {
      * @param {Time} timeObj The Time object to round to the nearest frame.
      * @returns {Time} Updated time object rounded to the nearest frame.
      */
-    convertTimeObjectToNearestFrame: function (sequence, timeObj) {
+    pub.convertTimeObjectToNearestFrame = function (sequence, timeObj) {
         // The timebase is ticks per frame
         var frameRateTicks = Number(sequence.timebase);
         var currentTicks = Number(timeObj.ticks);
@@ -770,14 +946,14 @@ var ThioUtils = {
         // Create a new Time object with the rounded ticks
         var roundedTime = this.ticksToTimeObject(currentTicks);
         return roundedTime;
-    },
+    };
 
     /**
      * Takes in an array of TrackItems (clips) and returns a new array sorted by their start ticks.
      * @param {TrackItem[]|TrackItemCollection} clips
      * @returns {TrackItem[]} An array of TrackItems sorted by their start ticks.
      */
-    getSortedClipsArray: function (clips) {
+    pub.getSortedClipsArray = function (clips) {
         var sortedClips = [];
         // If it's not already an array, convert it to one. Otherwise make a copy of it.
         if (!Array.isArray(clips)) {
@@ -792,29 +968,29 @@ var ThioUtils = {
         });
 
         return sortedClips;
-    },
+    };
 
     /**
      * Convert a time object to a formatted string based on the sequence's frame rate and display format.
      * @param {Time} timeObj
      * @returns {string} A formatted timecode string representing the time object.
      */
-    getTimecodeString_FromTimeObject: function (timeObj) {
+    pub.getTimecodeString_FromTimeObject = function (timeObj) {
         var frameRateTicks = app.project.activeSequence.timebase;
         var frameRateTimeObj = this.ticksToTimeObject(frameRateTicks);
         var videoDisplayFormat = app.project.activeSequence.getSettings().videoDisplayFormat;
         return timeObj.getFormatted(frameRateTimeObj, videoDisplayFormat).toString();
-    },
+    };
 
     /**
      * Convert frames to ticks based on the sequence's frame rate.
      * @param {Number} frames
      * @returns {Number} The equivalent number of ticks for the given number of frames.
      */
-    framesToTicks: function (frames) {
+    pub.framesToTicks = function (frames) {
         var frameRateTicks = app.project.activeSequence.timebase;
         return Number(frames) * Number(frameRateTicks);
-    },
+    };
 
     /**
      * Given a specific timeline position in ticks, this calculates the corresponding position relative to within the given clip object's source
@@ -822,33 +998,61 @@ var ThioUtils = {
      * @param {Number|string} timelineTicks
      * @returns
      */
-    ConvertTimelineTicksToSourceTicks: function (clipObject, timelineTicks) {
+    pub.ConvertTimelineTicksToSourceTicks = function (clipObject, timelineTicks) {
         var timelineTicksNumber = Number(timelineTicks);
         var clipStartTicks = Number(clipObject.start.ticks);
         var clipInternalStartTicks = Number(clipObject.inPoint.ticks);
         var timelineTicksOffset_FromClipStart = timelineTicksNumber - clipStartTicks;
         return clipInternalStartTicks + timelineTicksOffset_FromClipStart;
-    },
+    };
+
+    /**
+     * Custom object for holding info about QE TrackItems.
+     * @typedef {Object} ClipInfoQE
+     * @property {string} name - The name of the clip
+     * @property {string} vanillaMediaType - Media type from vanilla API ("Video" or "Audio")
+     * @property {number} clipItemIndexQE - The QE clip index in the track
+     * @property {number} trackIndex - The track index in the sequence
+     * @property {string} startTicks - Start time in ticks as string
+     * @property {string} endTicks - End time in ticks as string
+     * @property {string} vanillaNodeId - Node ID from vanilla clip object
+     * @property {QETrackItem} fullQEClipObject - Complete QE clip object reference
+     * @property {TrackItem} fullVanillaClipObject - Complete vanilla clip object reference
+     */
+
+    /**
+     * Custom object for holding info about TrackItems
+     * @typedef {Object} ClipInfoVanilla
+     * @property {string} name - The name of the clip
+     * @property {string} startTicks - Start time in ticks relative to the timeline
+     * @property {string} endTicks - End time in ticks relative to the timeline
+     * @property {string} internalClipStartTicks - In point in ticks relative to the clip
+     * @property {string} internalClipEndTicks - Out point in ticks relative to the clip
+     * @property {number} trackIndex - The track index in the sequence
+     * @property {string} nodeId - Node ID of the clip
+     * @property {TrackItem} fullClipObject - Complete clip object reference
+     */
+
 
     /**
      * Gathers information about the currently selected clips using the QE DOM. Returns an array of custom objects each containing details about the corresponding QE clip object.
-     * @returns {Array} An array of objects containing information about each selected clip.
+     * @returns {ClipInfoQE[]|null} An array of objects containing information about each selected clip, or null if no clips selected or no active sequence.
      */
-    getSelectedClipInfoQE: function () {
+    pub.getSelectedClipInfoQE = function () {
         // Enable QE DOM
         app.enableQE();
 
         var activeSequence = app.project.activeSequence;
         if (!activeSequence) {
             alert("No active sequence found.");
-            return;
+            return null;
         }
 
         // Get selected clips from vanilla API
         var selectedVanillaClipObjects = activeSequence.getSelection();
         if (!selectedVanillaClipObjects.length) {
             alert("No clips selected in the active sequence.");
-            return;
+            return null;
         }
 
         var qeSequence = qe.project.getActiveSequence();
@@ -908,14 +1112,14 @@ var ThioUtils = {
 
         //alert(outputString);
         return clipInfo;
-    },
+    };
 
     /**
      * For a given vanilla clip object, retrieves the corresponding QE clip object from the active sequence.
      * @param {TrackItem} vanillaClip
      * @returns {QETrackItem} The corresponding QE clip object if found, or null if not found.
      */
-    getQEClipFromVanillaClip: function (vanillaClip) {
+    pub.getQEClipFromVanillaClip = function (vanillaClip) {
         var qeSequence = qe.project.getActiveSequence();
         var trackIndex = vanillaClip.parentTrackIndex;
         var trackItem = null;
@@ -942,23 +1146,23 @@ var ThioUtils = {
             }
         }
         return null;
-    },
+    };
 
     /**
      * Gathers information about the currently selected clips using the vanilla (non-QE) DOM.
      * Returns an array of custom objects with details like start/end ticks, internal in/out points, track, and node ID.
-     * @returns {Array} An array of objects containing information about each selected clip.
+     * @returns {Array<ClipInfoVanilla>|null} An array of objects containing information about each selected clip, or undefined if no clips selected or no active sequence.
      */
-    getSelectedClipInfoVanilla: function () {
+    pub.getSelectedClipInfoVanilla = function () {
         var activeSequence = app.project.activeSequence;
         if (!activeSequence) {
             alert("No active sequence found.");
-            return;
+            return null;
         }
         var selectedClips = activeSequence.getSelection();
         if (!selectedClips.length) {
             alert("No clips selected in the active sequence.");
-            return;
+            return null;
         }
         var clipInfo = [];
         var outputString = "";
@@ -986,20 +1190,35 @@ var ThioUtils = {
         }
         //alert(outputString); // Display the formatted string in an alert
         return clipInfo;
-    },
+    };
+
     /**
-     * Converts an array-like object (such as a TrackItem collection) to a standard JavaScript array.
-     * @param {*} obj
-     * @returns {Array} An array containing the elements of the object.
+     * Converts a collection of items (like TrackItem collections) or array-like object into a standard JavaScript array. Or just an object to put into an array.
+     * @template T
+     * @param {T | T[] | Collection<T>} obj A collection of items, such as a TrackItem collection or an array-like object.
+     * @returns {T[]} An array containing the items from the collection.
      */
-    convertToArray: function (obj) {
-        var array = [];
-        for (var i = 0; i < obj.length; i++) {
-            array.push(obj[i]);
+    pub.convertToArray = function (obj) {
+        if (obj == null) { return []; }
+        if (Array.isArray(obj)) { return obj; }
+
+        /** Cast to any to avoid TypeScript issues with property access 
+         * @type {any} 
+         */
+        var anyObj = obj;
+
+        // If it's not an array-like object or appears to be a single object, just return an array with just it inside
+        if (typeof obj === 'string' || (anyObj.length === undefined && anyObj.numItems === undefined)) {
+            return [/** @type {T} */ (obj)]; // Use JSDoc to say we're returning an array with the same internal type
         }
-        // var array = [obj];
+
+        var array = [];
+        var count = anyObj.numItems !== undefined ? anyObj.numItems : anyObj.length;
+        for (var i = 0; i < count; i++) {
+            array.push(anyObj[i]);
+        }
         return array;
-    },
+    };
 
     /**
      * Check if an array of integers contains a specific integer
@@ -1007,7 +1226,7 @@ var ThioUtils = {
      * @param {Number} b
      * @returns {boolean} True if the array contains the integer, false otherwise.
      */
-    doesIntArrayAContainIntB: function (a, b) {
+    pub.doesIntArrayAContainIntB = function (a, b) {
         // If a has no length, return false immediately
         if (a.length === 0) {
             return false;
@@ -1027,7 +1246,7 @@ var ThioUtils = {
             }
         }
         return false;
-    },
+    };
 
 
     /**
@@ -1036,7 +1255,7 @@ var ThioUtils = {
      * @param {TrackItem} b
      * @return {boolean} True if the array contains the track item, false otherwise.
      */
-    doesAContainTrackB: function (a, b) {
+    pub.doesAContainTrackB = function (a, b) {
         // We have to compare by using start and end ticks and track index because this stupid language can't do object comparison
         // If either isn't an array already, convert it to one
 
@@ -1050,7 +1269,7 @@ var ThioUtils = {
                 return true;
             }
         }
-    },
+    };
 
     /**
      * Checks if two track items (clips) are the same based on their properties.
@@ -1058,7 +1277,7 @@ var ThioUtils = {
      * @param { TrackItem } trackB
      * @return { boolean } True if the clips are the same, false otherwise.
      */
-    isClipASameAsClipB: function (trackA, trackB) {
+    pub.isClipASameAsClipB = function (trackA, trackB) {
         if (
             trackA.start.ticks === trackB.start.ticks
             && trackA.end.ticks === trackB.end.ticks
@@ -1072,14 +1291,14 @@ var ThioUtils = {
             return true;
         }
         return false;
-    },
+    };
 
     /**
      * Checks if the active sequence duration in ticks is longer than javascript's MAX_SAFE_INTEGER and issues a warning if so.
      * @param {Sequence} sequence
      * @returns {void}
      */
-    checkWarnDuration: function (sequence) {
+    pub.checkWarnDuration = function (sequence) {
         // If no sequence is passed, use the active sequence
         if (typeof sequence === 'undefined' || sequence === undefined || sequence === null) {
             sequence = app.project.activeSequence;
@@ -1094,7 +1313,7 @@ var ThioUtils = {
         if (durationTicks > this.MAX_SAFE_INTEGER) {
             alert("Warning: The active sequence duration exceeds JavaScript's MAX_SAFE_INTEGER. Some operations may not work as expected.");
         }
-    },
+    };
 
     /**
      * The maximum safe integer in JavaScript (2^53 - 1).
@@ -1107,26 +1326,26 @@ var ThioUtils = {
      * Displays a simple alert message to confirm that ThioUtils.jsx is successfully included and accessible.
      * @returns {void}
      */
-    testUtilsAlert: function () {
+        pub.testUtilsAlert = function () {
         alert("Hello from inside Thio (ThioUtils.jsx)!");
-    },
+    };
 
     // ================================ Functions That Utilize ThioUtils.dll ================================
 
     /**
      * @returns {boolean} True if ThioUtils is loaded, false otherwise.
      */
-    isThioUtilsLibLoaded: function () {
+    pub.isThioUtilsLibLoaded = function () {
         // Check if the ThioUtils library is loaded and available
         return (typeof ThioUtilsLib !== 'undefined' && ThioUtilsLib !== null);
-    },
+    };
 
     /**
      * Plays a system beep sound if the external ThioUtils library is loaded, or shows an alert otherwise.
      * Useful for notifying the user of errors or important events without interrupting with an alert box.
      * @param {string} fallbackAlertMessage
      */
-    playErrorBeep: function (fallbackAlertMessage) {
+    pub.playErrorBeep = function (fallbackAlertMessage) {
         if (this.isThioUtilsLibLoaded()) {
             // 0x00000000 = Default OK
             // 0x00000010 = Default Error
@@ -1136,14 +1355,14 @@ var ThioUtils = {
         } else {
             alert(fallbackAlertMessage);
         }
-    },
+    };
 
 
     /**
      * Copy the given text to the clipboard using the ThioUtils library if available.
      * @param {string} text
      */
-    copyToClipboard: function (text) {
+    pub.copyToClipboard = function (text) {
         if (this.isThioUtilsLibLoaded()) {
             var copyResult = ThioUtilsLib.copyTextToClipboard(text);
             if (copyResult === 0) {
@@ -1156,4 +1375,9 @@ var ThioUtils = {
 
         return false; // Return false if copy failed or ThioUtils is not loaded
     }
-};
+
+    // Return the public API object, making it available as 'ThioUtils'
+    return pub;
+
+})(); // Execute the IIFE to create the ThioUtils object
+
