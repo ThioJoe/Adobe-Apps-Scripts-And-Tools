@@ -375,6 +375,8 @@ if (markersColorsForSeparateTimestamps.length > 0) {
 
 // Trim the final string to remove any leading or trailing whitespace. There's no trim function in extendscript, so using regex
 finalStringToPrint = finalStringToPrint.replace(/^\s+|\s+$/g, "");
+// Any final replacements or fixes, such as replacing directional quotes with standard quotes
+finalStringToPrint = finalStringToPrint.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
 
 // if isThioUtilsLoaded() === true {
 if (ThioUtils.isThioUtilsLibLoaded() === true) {

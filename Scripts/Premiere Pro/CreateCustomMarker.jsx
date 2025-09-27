@@ -91,7 +91,8 @@ function addMarkerAtLocation(startLocationSeconds, endLocationSeconds, color, ma
 // Get the start and end times based on the current playhead position and the desired duration
 if (typeof app.project.activeSequence !== 'undefined' && app.project.activeSequence !== null) {
 
-    startLocationSeconds = app.project.activeSequence.getPlayerPosition().seconds;
+    var startLocationSeconds = app.project.activeSequence.getPlayerPosition().seconds;
+    var endLocationSeconds = null; // Default to null if no duration is set
 
     if (markerDurationSeconds === null || markerDurationSeconds <= 0) {
         endLocationSeconds = null;

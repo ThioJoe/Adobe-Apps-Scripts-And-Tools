@@ -28,9 +28,6 @@ var selectedClip = selectedClips[0];
     
 var internalPlayheadPos = ThioUtils.GetPlayheadPosition_WithinSource_AsTicks(false);
 
-var currentPlayheadPos = ThioUtils.GetPlayheadPosition_WithinTimeline_AsTicks();
-
-
 // Get a specific property from a component, or all of them. Returns an array of property objects
 function GetEffectComponentPropertyArray(component, propertyName) {
     var propertyArray = [];
@@ -54,7 +51,7 @@ function GetEffectComponentPropertyArray(component, propertyName) {
 }
 
 function main() {
-    var motionComponent = ThioUtils.GetClipEffectComponent_AsObject(selectedClip, "Motion");
+    var motionComponent = ThioUtils.GetEffectComponent(selectedClip, "Motion");
     var propertyToCopy = null; // Leave null to copy all properties, otherwise specify the property name to get only 1 
     var propertyArray = GetEffectComponentPropertyArray(motionComponent, propertyToCopy);
 

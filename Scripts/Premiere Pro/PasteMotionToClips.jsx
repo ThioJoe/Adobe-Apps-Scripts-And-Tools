@@ -43,7 +43,7 @@ function main(addKeyframesForKeyframedProperties) {
 
     for (var i = 0; i < clipsToApplyMotion.length; i++) {
         var clip = clipsToApplyMotion[i];
-        var motionComponent = ThioUtils.GetClipEffectComponent_AsObject(clip, "Motion");
+        var motionComponent = ThioUtils.GetEffectComponent(clip, "Motion");
 
         // Go through the properties in the component and apply the ones we have values for
         var numProperties = motionComponent.properties.numItems;
