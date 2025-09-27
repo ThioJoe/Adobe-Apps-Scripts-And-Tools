@@ -34,6 +34,13 @@
 
  - **Purpose:** Add a specified (`.mogrt`) file of your choice to the sequence at the playhead position. It will put it on the video track above the topmost clip under the playhead.
 
+## Evenly Cut and Distribute Clips [⮺](Scripts/Premiere%20Pro/Evenly_Cut_And_Distribute_Selected_Clips.jsx)
+
+ - **Purpose:** Evenly distributes the cuts of any selected sequential clips on the timeline, so they are all the same length. Distributes based on the start of the first clip and end of the last clip.
+ - **Example:**
+<p align="center"><img width="827" height="279" alt="Evenly Cut Clips" src="https://github.com/user-attachments/assets/b7e3786a-5c0c-4027-b235-5dce31018770" /></p>
+
+
 ## Make Timestamps From Text in Selected Graphics [⮺](Scripts/Premiere%20Pro/MakeTimestamps.jsx)
 - **Purpose:** Generates YouTube chapter timestamps using the text and starting points of selected graphics clips, and optionally includes timestamps of markers of chosen colors
 - **How To Use:**
