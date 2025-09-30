@@ -66,14 +66,67 @@
 - **Example:**
 <p align="center"><img width="800" alt="Timeline view of selected clips with transitions between them but not on the left and right ends" src="https://github.com/user-attachments/assets/631b9f01-d146-43ff-a1ec-4939b432e588"></p>
 
+------
 
-# Extendscript Library
+# ThioUtils.jsx - Useful Functions to use in Premiere Pro Extendscripts
 
-Extendscript external dll libraries allow adding native javascript methods, functions, etc that can be used with Extendscript. I've created my own to add various functionality that wasn't built into extendscript.
+A comprehensive utility library of helper functions for Adobe Premiere Pro ExtendScript development. It simplifies common tasks related to clips, sequences, effects, time objects, and more.
 
-Current methods:
-- `ThioUtilsLib.systemBeep(uint)`: Play one of the standard Windows sounds
-- `ThioUtilsLib.playSoundAlias(string)`: Plays a system sound by alias or filename within the `C:\Windows\Media` folder
-- `ThioUtilsLib.copyTextToClipboard(string)`: Places an inputted string on the Windows clipboard
+A descriptive list of all the functions can be found [here on this wiki page](https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools/wiki/ThioUtils.jsx-Function-Reference-(Premiere-Pro)).
 
-See this Wiki page for more details: https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools/wiki/Extendscript-ThioUtils
+## How to Use
+
+### Including the Script
+
+To use the utilities, include the `ThioUtils.jsx` file in your script.
+
+Here is a block with robust logic to include it whether it's in multiple common locations for the file, such as next to the current script, in an "includeS" folder, up one directory from the current script, or up one directory then down in an "includes" folder.
+
+```javascript
+// Robust Include Logic
+function getCurrentScriptDirectory() { return (new File($.fileName)).parent; }
+function joinPath() { return Array.prototype.slice.call(arguments).join('/'); }
+function relativeToFullPath(relativePath) { return joinPath(getCurrentScriptDirectory(), relativePath); }
+try { eval("#include '" + relativeToFullPath("ThioUtils.jsx") + "'"); }
+catch(e) {
+    try { var e1=e; eval("#include '" + relativeToFullPath("includes/ThioUtils.jsx") + "'"); }
+    catch(e) { var e2=e; try { eval("#include '" + relativeToFullPath("../ThioUtils.jsx") + "'"); }
+    catch (e) { var e3=e; try { eval("#include '" + relativeToFullPath("../includes/ThioUtils.jsx") + "'"); }
+    catch (e) { var e4=e; alert("Could not find ThioUtils.jsx in current dir, includes folder, or parent dir." + "\n\nAll Attempt Errors: \n"+e1+"\n"+e2+"\n"+e2+"\n"+e3+"\n"+e4); }}}}
+````
+
+### Calling Functions
+
+Once included, all functions are accessible through the global `ThioUtils` object.
+
+```javascript
+// Get the track index of the topmost clip at the playhead
+var topTrackIndex = ThioUtils.getTopTrackItemAtPlayhead();
+
+// Get an array of all selected video clips
+var selectedClips = ThioUtils.GetSelectedVideoClips();
+```
+
+Functions are organized into categories for easier access. For example, both of these would work to call getTopTrackItemAtPlayhead():
+
+```javascript
+ThioUtils.getTopTrackItemAtPlayhead()
+
+ThioUtils.clips.getTopTrackItemAtPlayhead()
+```
+
+Current categories include `checks`, `cog` ("check or get"), `time`, `clips`, `edit`, `effects`, `transitions`, `sequences`, `util`, `system` (some system methods require external `ThioUtilsLib.dll`)
+
+## Function Reference
+
+Functions are organized into categories for easier access. For example, to call `getTopTrackItemAtPlayhead`, you can use either the direct `ThioUtils.getTopTrackItemAtPlayhead()` or the categorized `ThioUtils.clips.getTopTrackItemAtPlayhead()`.
+
+
+## External DLL Extension Library (Optional)
+
+This script can optionally load `ThioUtilsLib.jsx`, which interfaces with a `ThioUtils.dll` external library. This library provides system-level functions not available in standard ExtendScript, such as playing system sounds or copying text to the clipboard.
+
+The script will attempt to load this library automatically. If `ThioUtilsLib.jsx` or the associated `.dll` is not found, a message will be logged to the console, and related functions will be unavailable.
+
+See [this Wiki page](https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools/wiki/Extendscript-ThioUtilsLib-External-Library-DLL) for more details about usage and setup.
+
