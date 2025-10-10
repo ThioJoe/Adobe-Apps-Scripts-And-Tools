@@ -1,5 +1,5 @@
 // ThioUtils.jsx - Utility functions for Premiere Pro Extendscript
-// Updated - 9/27/25
+// Updated - 10/10/25
 //
 // Examples of ways to Include:
 //    #include './includes/ThioUtils.jsx'
@@ -50,22 +50,57 @@ function joinPath() { return Array.prototype.slice.call(arguments).join('/'); }
  */
 function relativeToFullPath(relativePath) { return joinPath(getCurrentScriptDirectory(), relativePath); }
 
-try { eval("#include '" + relativeToFullPath("ThioUtilsLib.jsx") + "'"); }
-catch (e) {
-    try { var oErr1 = e; eval("#include '" + relativeToFullPath("includes/ThioUtilsLib.jsx") + "'"); }
-    catch (e) {
-        // Try in "include" folder
-        try { var oErr2 = e; eval("#include '" + relativeToFullPath("include/ThioUtilsLib.jsx") + "'"); }
-        catch (e) {
-            try { var oErr3 = e; eval("#include '" + relativeToFullPath("../ThioUtilsLib.jsx") + "'"); }
-            catch (e) { var oErr4 = e; eval("#include '" + relativeToFullPath("../includes/ThioUtilsLib.jsx") + "'"); 
-                var errorString = + "\n\nFull Errors: \n" + oErr1 + "\n" + oErr2 + "\n" + e;
-                $.writeln("Could not find or load ThioUtilsLib.jsx. Looked in same folder, and looked in any 'includes' and 'include' folders. ThioUtils.dll functionality will not be available");
-                $.writeln(errorString);
-            }
-        }
+
+/**
+ * Robust function to include another script file and show errors.
+ * @param {string} fileName 
+ * @param {boolean} required 
+ * @param {string} notAvailableFunctionalityString 
+ */
+function includeFile(fileName, required, notAvailableFunctionalityString) {
+    var notAvailStr;
+    if (typeof notAvailableFunctionalityString === 'undefined' || notAvailableFunctionalityString === undefined || notAvailableFunctionalityString === null ||  (typeof notAvailableFunctionalityString === 'string' && notAvailableFunctionalityString === '')) {
+        notAvailStr = "Some";
+    } else {
+        notAvailStr = notAvailableFunctionalityString;
     }
+    var path1 = relativeToFullPath(fileName);
+    var path2 = relativeToFullPath("includes/" + fileName)
+    var path3 = relativeToFullPath("include/" + fileName)
+    var path4 = relativeToFullPath("../" + fileName)
+    var path5 = relativeToFullPath("../includes/" + fileName)
+
+    // Look in the various possible locations
+    try { eval("#include '" + path1 + "'"); }
+    catch (e) {
+    try { var oErr1 = e; eval("#include '" + path2 + "'"); }
+    catch (e) {
+    try { var oErr2 = e; eval("#include '" + path3 + "'"); }
+    catch (e) {
+    try { var oErr3 = e; eval("#include '" + path4 + "'"); }
+    catch (e) {
+    try { var oErr4 = e; eval("#include '" + path5 + "'"); }
+    catch (e) {
+        var errorString = + "\n\nFull Errors: \n" + oErr1 + "\n" + oErr2 + "\n" + oErr3 + "\n" + oErr4 + "\n" + e + "\n\n--------------------";
+        if (required === true) {
+            var errStr = "Could not find or load " + fileName + ". Looked in same folder, and looked in any 'includes' and 'include' folders. This file is required and some utilities won't work without it."
+            $.writeln(errStr);
+            alert(errStr + "\n\n" + notAvailStr);
+        } else {
+            $.writeln("Could not find or load " + fileName + ". Looked in same folder, and looked in any 'includes' and 'include' folders. " + notAvailStr + " functionality will not be available");
+        }
+
+        $.writeln(errorString);
+    } // Catch Path5
+    } // Catch Path4
+    } // Catch Path3
+    } // Catch Path2
+    } // Catch Path1
 }
+
+// Not required but recommended - ThioUtilsLib.jsx and ThioUtils.dll
+includeFile("ThioUtilsLib.jsx", false, "ThioUtils.dll")
+includeFile("es5-shim.js", true, "You can find this file in the Scripts/include folder of my repo (https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools). Put the file next to the ThioUtils.jsx script or in a folder called 'includes' or 'include'.")
 
 // -------------------------------------------------------
 
@@ -2520,11 +2555,10 @@ var ThioUtils = (function () {
         copyToClipboard: pub.copyToClipboard
     };
 
-    
+   
     // --------------------------------------------------------------------------------------------
     // Return the public API object, making it available as 'ThioUtils'
     return pub; 
 
 
 })(); // Execute the IIFE to create the ThioUtils object
-
