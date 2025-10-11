@@ -52,7 +52,8 @@ function relativeToFullPath(relativePath) { return joinPath(getCurrentScriptDire
 
 
 /**
- * Robust function to include another script file and show errors.
+ * Function to search several pre-designated paths for a script file to include. If found it returns a full "#include" string that can be passed into eval.
+ * The eval function apparently needs to be ran from global scope which is why we don't just run the eval within this function.
  * @param {string} fileName 
  * @param {boolean} required 
  * @param {string} notAvailableFunctionalityString 
@@ -64,43 +65,64 @@ function includeFile(fileName, required, notAvailableFunctionalityString) {
     } else {
         notAvailStr = notAvailableFunctionalityString;
     }
-    var path1 = relativeToFullPath(fileName);
-    var path2 = relativeToFullPath("includes/" + fileName)
-    var path3 = relativeToFullPath("include/" + fileName)
-    var path4 = relativeToFullPath("../" + fileName)
-    var path5 = relativeToFullPath("../includes/" + fileName)
 
-    // Look in the various possible locations
-    try { eval("#include '" + path1 + "'"); }
-    catch (e) {
-    try { var oErr1 = e; eval("#include '" + path2 + "'"); }
-    catch (e) {
-    try { var oErr2 = e; eval("#include '" + path3 + "'"); }
-    catch (e) {
-    try { var oErr3 = e; eval("#include '" + path4 + "'"); }
-    catch (e) {
-    try { var oErr4 = e; eval("#include '" + path5 + "'"); }
-    catch (e) {
-        var errorString = + "\n\nFull Errors: \n" + oErr1 + "\n" + oErr2 + "\n" + oErr3 + "\n" + oErr4 + "\n" + e + "\n\n--------------------";
-        if (required === true) {
-            var errStr = "Could not find or load " + fileName + ". Looked in same folder, and looked in any 'includes' and 'include' folders. This file is required and some utilities won't work without it."
-            $.writeln(errStr);
-            alert(errStr + "\n\n" + notAvailStr);
-        } else {
-            $.writeln("Could not find or load " + fileName + ". Looked in same folder, and looked in any 'includes' and 'include' folders. " + notAvailStr + " functionality will not be available");
+    /**
+     * Makes an eval include string from a file path
+     * @param {string} path 
+     */
+    function getEvalString(path) {
+        return "#include '" + path + "'"
+    }
+
+    // Define where to look
+    var pathsToSearch = [
+        relativeToFullPath(fileName),
+        relativeToFullPath("includes/" + fileName),
+        relativeToFullPath("include/" + fileName),
+        relativeToFullPath("../" + fileName),
+        relativeToFullPath("../includes/" + fileName)
+    ]
+
+    // Look through each path and return if found
+    for (var i = 0; i < pathsToSearch.length; i++) {
+        if ( File(pathsToSearch[i]).exists === true ) {
+            return getEvalString(pathsToSearch[i]);
         }
+    }
 
-        $.writeln(errorString);
-    } // Catch Path5
-    } // Catch Path4
-    } // Catch Path3
-    } // Catch Path2
-    } // Catch Path1
+    // If at this point, it failed to find the file.
+    if (required === true) {
+        var errStr = "Could not find " + fileName + ". Looked in same folder, and looked in any 'includes' and 'include' folders. This file is required and some utilities won't work without it."
+        $.writeln(errStr);
+        alert(errStr + "\n\n" + notAvailStr);
+    } else {
+        $.writeln("Could not find " + fileName + ". Looked in same folder, and looked in any 'includes' and 'include' folders. " + notAvailStr + " functionality will not be available");
+    }
+
+    return null;
 }
 
+// ------- Other included scripts. We apparently need to run eval in the global scope. -------
 // Not required but recommended - ThioUtilsLib.jsx and ThioUtils.dll
-includeFile("ThioUtilsLib.jsx", false, "ThioUtils.dll")
-includeFile("es5-shim.js", true, "You can find this file in the Scripts/include folder of my repo (https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools). Put the file next to the ThioUtils.jsx script or in a folder called 'includes' or 'include'.")
+var incThioUtilsLib = includeFile("ThioUtilsLib.jsx", false, "ThioUtils.dll")
+if (incThioUtilsLib !== null) {
+    try {
+        eval(incThioUtilsLib);
+    } catch (e) {
+        $.writeln("Error including ThioUtilsLib.jsx. " + e.toString());
+        alert("Error -- Found ThioUtilsLib.jsx but failed to load it. Some functionality will not be available. \n\nError Message:\n" + e.toString());
+    }
+}
+// Required - es5-shim.js
+var incEs5Shim = includeFile("es5-shim.js", true, "You can find this file in the Scripts/include folder of my repo (https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools). Put the file next to the ThioUtils.jsx script or in a folder called 'includes' or 'include'.")
+if (incEs5Shim !== null) {
+    try {
+        eval(incEs5Shim);
+    } catch (e) {
+        $.writeln("Error including es5-shim.js. " + e.toString());
+        alert("Error -- Found ThioUtilsLib.jsx but failed to load it. Some functionality will not be available. \n\nError Message:\n" + e.toString());
+    }
+}
 
 // -------------------------------------------------------
 
