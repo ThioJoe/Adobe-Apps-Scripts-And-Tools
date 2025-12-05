@@ -1,5 +1,5 @@
 // ThioUtils.jsx - Utility functions for Premiere Pro Extendscript
-// Updated - 10/10/25
+// Updated - 12/5/25
 //
 // Examples of ways to Include:
 //    #include './includes/ThioUtils.jsx'
@@ -1046,7 +1046,7 @@ var ThioUtils = (function () {
         var inPointTimeObj = clip.inPoint;
         inPointTimeObj.seconds += trimSeconds; // Shift the inpoint back by the specified amount
         var newInPointTickTime = TickTime.createWithSeconds(inPointTimeObj.seconds); // Create a new TickTime object with the updated inpoint seconds
-        newInPointTickTime = newInPointTickTime.alignToNearestFrame(sourceFrameRate); // Align to the nearest frame based on the source frame rate
+        newInPointTickTime = newInPointTickTime.alignToNearestFrame(sourceFrameRate); // Align to the nearest frame based on the source frame rate, because we're working within the clip
         inPointTimeObj.ticks = newInPointTickTime.ticks; // Update the inpoint seconds to the aligned time
 
         clip.inPoint = inPointTimeObj; // Set the new inpoint
@@ -1054,7 +1054,7 @@ var ThioUtils = (function () {
         var startTimeObj = clip.start;
         startTimeObj.seconds += trimSeconds; // Shift the start time back by the specified amount
         var startTimeTickTime = TickTime.createWithSeconds(startTimeObj.seconds); // Create a new TickTime object with the updated start time seconds
-        startTimeTickTime = startTimeTickTime.alignToNearestFrame(sequenceFrameRate); // Align to the nearest frame based on the current frame rate
+        startTimeTickTime = startTimeTickTime.alignToNearestFrame(sequenceFrameRate); // Align to the nearest frame based on the sequence frame rate, because we're working within the sequence timeline
         startTimeObj.ticks = startTimeTickTime.ticks; // Update the start time seconds to the aligned time
 
         clip.start = startTimeObj; // Set the new start time
@@ -1075,7 +1075,7 @@ var ThioUtils = (function () {
         var outPointTimeObj = clip.outPoint;
         outPointTimeObj.seconds -= trimSeconds; // Shift the outpoint forward by the specified amount
         var newOutPointTickTime = TickTime.createWithSeconds(outPointTimeObj.seconds); // Create a new TickTime object with the updated outpoint seconds
-        newOutPointTickTime = newOutPointTickTime.alignToNearestFrame(sourceFrameRate); // Align to the nearest frame based on the source frame rate
+        newOutPointTickTime = newOutPointTickTime.alignToNearestFrame(sourceFrameRate); // Align to the nearest frame based on the source frame rate, because we're working within the clip
         outPointTimeObj.ticks = newOutPointTickTime.ticks; // Update the outpoint seconds to the aligned time
 
         clip.outPoint = outPointTimeObj; // Set the new outpoint
@@ -1083,7 +1083,7 @@ var ThioUtils = (function () {
         var endTimeObj = clip.end;
         endTimeObj.seconds -= trimSeconds; // Shift the end time forward by the specified amount
         var endTimeTickTime = TickTime.createWithSeconds(endTimeObj.seconds); // Create a new TickTime object with the updated end time seconds
-        endTimeTickTime = endTimeTickTime.alignToNearestFrame(sequenceFrameRate); // Align to the nearest frame based on the current frame rate
+        endTimeTickTime = endTimeTickTime.alignToNearestFrame(sequenceFrameRate); // Align to the nearest frame based on the sequence frame rate, because we're working within the sequence timeline
         endTimeObj.ticks = endTimeTickTime.ticks; // Update the end time seconds to the aligned time
 
         clip.end = endTimeObj; // Set the new end time
@@ -2179,6 +2179,55 @@ var ThioUtils = (function () {
         }
     };
 
+    // ------------------ Project ------------------
+
+    /**
+     * Retrieves a bin from the project items panel. Can also find a bin within another bin if provided, otherwise searches root.
+     * @param {string} binName 
+     * @param {ProjectItem=} rootToSearch 
+     * @returns {ProjectItem|null} Returns the bin with the specified name, or null if not found.
+     */
+    pub.getBinByName = function(binName, rootToSearch) {
+        var currentProject = app.project;
+        if (typeof rootToSearch === 'undefined' || rootToSearch === undefined || rootToSearch === null) {
+            rootToSearch = currentProject.rootItem; // Default to the root item if no root is provided
+        }
+
+        for (var i = 0; i < rootToSearch.children.length; i++) {
+            var item = rootToSearch.children[i];
+            if (item.type === ProjectItemType.BIN && item.name === binName) {
+                return item;
+            }
+        }
+        return null; // Return null if the bin is not found
+    }
+
+    /**
+     * Finds an item within a provided bin and returns the project item object.
+     * @param {ProjectItem} binObj 
+     * @param {string} itemName 
+     * @returns {ProjectItem|null} Returns the item with the specified name, or null if not found.
+     */
+    pub.getItemInBinByName = function(binObj, itemName) {
+        if (binObj.type != ProjectItemType.BIN) {
+            alert("getItemInBinByName Error: Provided object does not appear to be a bin.");
+            return null;
+        }
+        if (typeof itemName === 'undefined' || itemName === undefined || itemName === null || (typeof itemName === 'string' && itemName === '')) {
+            alert("getItemInBinByName Error: itemName must be provided and not be an empty string.");
+            return null;
+        }
+
+        for (var i = 0; i < binObj.children.numItems; i++) {
+            var item = binObj.children[i];
+            if (item.name === itemName) {
+                return item;
+            }
+        }
+
+        return null;
+    }
+
     // ------------------ Utility ------------------
 
     /**
@@ -2447,6 +2496,16 @@ var ThioUtils = (function () {
     pub.cog = {
         checkOrGetActiveSequence: pub.checkOrGetActiveSequence,
         checkOrGetSelectedClips: pub.checkOrGetSelectedClips
+    };
+
+    /**
+     * @namespace project
+     * @memberof ThioUtils
+     * @description Related to general project items including the project panel.
+     */
+    pub.project = {
+        getBinByName: pub.getBinByName,
+        getItemInBinByName: pub.getItemInBinByName
     };
 
     /**
