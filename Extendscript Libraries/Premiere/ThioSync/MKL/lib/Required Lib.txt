@@ -1,0 +1,4 @@
+Intel MKL:
+	mkl_core.lib
+	mkl_intel_lp64.lib
+	mkl_sequential.lib
