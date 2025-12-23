@@ -161,6 +161,8 @@
   <ItemGroup>
     <ClInclude Include="Find-Audio-Offset.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="Include\SoCClient.h" />
+    <ClInclude Include="Include\SoSharedLibDefs.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="ThioSync.h" />
     <ClInclude Include="third-party-licenses.cpp" />
