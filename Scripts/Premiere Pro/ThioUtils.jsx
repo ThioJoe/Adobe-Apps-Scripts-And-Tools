@@ -1,5 +1,5 @@
 // ThioUtils.jsx - Utility functions for Premiere Pro Extendscript
-// Updated - 12/5/25
+// Updated - 3/26/26
 //
 // Examples of ways to Include:
 //    #include './includes/ThioUtils.jsx'
@@ -415,6 +415,40 @@ var ThioUtils = (function () {
     };
 
     /**
+     * Locks all of the tracks in a given sequence.
+     * @param {Sequence|null} sequence The sequence to lock the tracks on. If none provided, uses active sequence
+     * @param {boolean=} lockAudioTracks Default: True - Whether to lock all the audio tracks
+     * @param {boolean=} lockVideoTracks Default: True - Whether to lock all the video tracks
+     */
+    pub.lockAllTracksInSequence = function(sequence, lockAudioTracks, lockVideoTracks) {
+        var sequenceToUse = this.checkOrGetActiveSequence(sequence)
+
+        if (typeof lockAudioTracks === 'undefined' || lockAudioTracks === undefined || lockAudioTracks === null) {
+            lockAudioTracks = true
+        }
+
+        if (typeof lockVideoTracks === 'undefined' || lockVideoTracks === undefined || lockVideoTracks === null) {
+            lockVideoTracks = true
+        }
+
+        if (lockAudioTracks) {
+            var audioTracksArray = this.convertToArray(sequenceToUse.audioTracks)
+            for (var i = 0; i < audioTracksArray.length; i++) {
+                var track = audioTracksArray[i];
+                track.setLocked(1);
+            }
+        }
+
+        if (lockVideoTracks) {
+            var videoTracksArray = this.convertToArray(sequenceToUse.videoTracks)
+            for (var j = 0; j < videoTracksArray.length; j++) {
+                var track = videoTracksArray[j];
+                track.setLocked(1);
+            }
+        }
+    }
+
+    /**
      * Retrieves an array of currently selected video clips from the active sequence.
      * Filters out any non-video items and alerts if no video clips are selected.
      * @returns {TrackItem[]} An array of selected video clips in the active sequence.
@@ -439,9 +473,14 @@ var ThioUtils = (function () {
 
     /**
      * Gets all the sequences in the current project as an array of QESequence objects
+     * @param {boolean=} flushCache Default: False. May be necessary if you create new bins and sequences, but invalidates previous QESequence references.
      * @returns {QESequence[]}
      */
-    pub.getAllQESequencesInProject = function () {
+    pub.getAllQESequencesInProject = function (flushCache) {
+        if (typeof flushCache === 'undefined' || flushCache === undefined || flushCache === null) {
+            flushCache = false;
+        }
+
         // Get the items in the bin, and if any of them are also bins, recursively get the rest
         /**
          * @param {Number} numBins 
@@ -501,7 +540,10 @@ var ThioUtils = (function () {
 
         // -------------------------------------------------
 
-        qe.project.flushCache(); // Needed to update current number of bins and such
+        if (flushCache === true) {
+            qe.project.flushCache(); // Needed to update current number of bins and such
+        }
+
         var numSeq = qe.project.numSequences;
         var numBins = qe.project.numBins;
 
@@ -1035,18 +1077,28 @@ var ThioUtils = (function () {
      * Trims the start of a clip without moving the remaining part of the clip.
      * @param {TrackItem} clip 
      * @param {Number} trimSeconds The number of seconds to trim from the start of the clip. A negative value will extend the clip earlier.
+     * @param {Boolean=} alignToNearestFrame Whether to align the new inpoint to the nearest frame. Default: true
      */
-    pub.trimClipStart = function (clip, trimSeconds) {
+    pub.trimClipStart = function (clip, trimSeconds, alignToNearestFrame) {
+        if (typeof alignToNearestFrame === 'undefined' || alignToNearestFrame === undefined || alignToNearestFrame === null) {
+            alignToNearestFrame = true;
+        }
+
         var sequenceFrameRate = new FrameRate();
         sequenceFrameRate.ticksPerFrame = Number(app.project.activeSequence.timebase); // Set the current frame rate to the sequence timebase
 
-        var sourceFPS = clip.projectItem.getFootageInterpretation().frameRate; // Get the source frame rate from the clip's project item
-        var sourceFrameRate = FrameRate.createWithValue(sourceFPS); // Create a FrameRate object with the source frame rate
+        var sourceFrameRate = new FrameRate()
+        sourceFrameRate.ticksPerFrame = Number(clip.projectItem.sourceTimebase) // sourceTimebase is new
+
+        // var sourceFPS = clip.projectItem.getFootageInterpretation().frameRate; // Get the source frame rate from the clip's project item
+        // var sourceFrameRate = FrameRate.createWithValue(sourceFPS); // Create a FrameRate object with the source frame rate
 
         var inPointTimeObj = clip.inPoint;
         inPointTimeObj.seconds += trimSeconds; // Shift the inpoint back by the specified amount
         var newInPointTickTime = TickTime.createWithSeconds(inPointTimeObj.seconds); // Create a new TickTime object with the updated inpoint seconds
-        newInPointTickTime = newInPointTickTime.alignToNearestFrame(sourceFrameRate); // Align to the nearest frame based on the source frame rate, because we're working within the clip
+        if (alignToNearestFrame) {
+            newInPointTickTime = newInPointTickTime.alignToNearestFrame(sourceFrameRate); // Align to the nearest frame based on the source frame rate, because we're working within the clip
+        }
         inPointTimeObj.ticks = newInPointTickTime.ticks; // Update the inpoint seconds to the aligned time
 
         clip.inPoint = inPointTimeObj; // Set the new inpoint
@@ -1054,7 +1106,9 @@ var ThioUtils = (function () {
         var startTimeObj = clip.start;
         startTimeObj.seconds += trimSeconds; // Shift the start time back by the specified amount
         var startTimeTickTime = TickTime.createWithSeconds(startTimeObj.seconds); // Create a new TickTime object with the updated start time seconds
-        startTimeTickTime = startTimeTickTime.alignToNearestFrame(sequenceFrameRate); // Align to the nearest frame based on the sequence frame rate, because we're working within the sequence timeline
+        if (alignToNearestFrame) {
+            startTimeTickTime = startTimeTickTime.alignToNearestFrame(sequenceFrameRate); // Align to the nearest frame based on the sequence frame rate, because we're working within the sequence timeline
+        }
         startTimeObj.ticks = startTimeTickTime.ticks; // Update the start time seconds to the aligned time
 
         clip.start = startTimeObj; // Set the new start time
@@ -1064,18 +1118,28 @@ var ThioUtils = (function () {
      * Trims the end of a clip without moving the remaining part of the clip.
      * @param {TrackItem} clip 
      * @param {Number} trimSeconds The number of seconds to trim from the end of the clip. A negative value will extend the clip further.
+     * @param {Boolean=} alignToNearestFrame Whether to align the new outpoint to the nearest frame. Default: true
      */
-    pub.trimClipEnd = function (clip, trimSeconds) {
+    pub.trimClipEnd = function (clip, trimSeconds, alignToNearestFrame) {
+        if (typeof alignToNearestFrame === 'undefined' || alignToNearestFrame === undefined || alignToNearestFrame === null) {
+            alignToNearestFrame = true;
+        }
+
         var sequenceFrameRate = new FrameRate();
         sequenceFrameRate.ticksPerFrame = Number(app.project.activeSequence.timebase); // Set the current frame rate to the sequence timebase
 
-        var sourceFPS = clip.projectItem.getFootageInterpretation().frameRate; // Get the source frame rate from the clip's project item
-        var sourceFrameRate = FrameRate.createWithValue(sourceFPS); // Create a FrameRate object with the source frame rate
+        var sourceFrameRate = new FrameRate()
+        sourceFrameRate.ticksPerFrame = Number(clip.projectItem.sourceTimebase) // sourceTimebase is new
+
+        // var sourceFPS = clip.projectItem.getFootageInterpretation().frameRate; // Get the source frame rate from the clip's project item
+        // var sourceFrameRate = FrameRate.createWithValue(sourceFPS); // Create a FrameRate object with the source frame rate
 
         var outPointTimeObj = clip.outPoint;
         outPointTimeObj.seconds -= trimSeconds; // Shift the outpoint forward by the specified amount
         var newOutPointTickTime = TickTime.createWithSeconds(outPointTimeObj.seconds); // Create a new TickTime object with the updated outpoint seconds
-        newOutPointTickTime = newOutPointTickTime.alignToNearestFrame(sourceFrameRate); // Align to the nearest frame based on the source frame rate, because we're working within the clip
+        if (alignToNearestFrame) {
+            newOutPointTickTime = newOutPointTickTime.alignToNearestFrame(sourceFrameRate); // Align to the nearest frame based on the source frame rate, because we're working within the clip
+        }
         outPointTimeObj.ticks = newOutPointTickTime.ticks; // Update the outpoint seconds to the aligned time
 
         clip.outPoint = outPointTimeObj; // Set the new outpoint
@@ -1083,7 +1147,9 @@ var ThioUtils = (function () {
         var endTimeObj = clip.end;
         endTimeObj.seconds -= trimSeconds; // Shift the end time forward by the specified amount
         var endTimeTickTime = TickTime.createWithSeconds(endTimeObj.seconds); // Create a new TickTime object with the updated end time seconds
-        endTimeTickTime = endTimeTickTime.alignToNearestFrame(sequenceFrameRate); // Align to the nearest frame based on the sequence frame rate, because we're working within the sequence timeline
+        if (alignToNearestFrame) {
+            endTimeTickTime = endTimeTickTime.alignToNearestFrame(sequenceFrameRate); // Align to the nearest frame based on the sequence frame rate, because we're working within the sequence timeline
+        }
         endTimeObj.ticks = endTimeTickTime.ticks; // Update the end time seconds to the aligned time
 
         clip.end = endTimeObj; // Set the new end time
@@ -1238,8 +1304,9 @@ var ThioUtils = (function () {
      * @param {Boolean} useExistingKeyframes Whether to use an existing pair of start/end keyframes instead of putting them at the start and end of the clip (if there are 2 keyframes)
      * @param {Boolean=} accountForCrop Whether to account for any crop effect applied to the clip when calculating the scale (default: true)
      * @param {Boolean=} silent If true, will not show any alerts. Default: false
+     * @param {Boolean=} placeAtTransitionEnds Default:False. If true, will place the keyframes at the ends of any transitions on the clip instead of the clip in/out points. Only applies if useExistingKeyframes is false or there are no existing keyframes.
      */
-    pub.AutoSpeedScaleExpand = function(clip, pixelVelocity, useExistingKeyframes, accountForCrop, silent) {
+    pub.AutoSpeedScaleExpand = function(clip, pixelVelocity, useExistingKeyframes, accountForCrop, silent, placeAtTransitionEnds) {
         // Only work on video track items
         if (clip.mediaType != "Video") {
             return;
@@ -1250,6 +1317,10 @@ var ThioUtils = (function () {
         }
         if (typeof accountForCrop === 'undefined' || accountForCrop === undefined || accountForCrop === null) {
             accountForCrop = true;
+        }
+
+        if (typeof placeAtTransitionEnds === 'undefined' || placeAtTransitionEnds === undefined || placeAtTransitionEnds === null) {
+            placeAtTransitionEnds = false;
         }
 
         var sequence = app.project.activeSequence;
@@ -1284,9 +1355,24 @@ var ThioUtils = (function () {
         var endScale = scaleProp.getValueAtTime(clip.outPoint);
         var clipDurationSeconds = null;
 
+        var leftTrans, rightTrans = null
+        if (placeAtTransitionEnds) {
+            var transitionInfoList = this.transitions.getTransitionsForSelectedClips([clip], false, true)
+            if (transitionInfoList && transitionInfoList.length !== 0) {
+                var transitionInfo = transitionInfoList[0]
+                leftTrans = transitionInfo.transitions.left
+                rightTrans = transitionInfo.transitions.right
+            }
+        }
+
         // If not set to use existing keyframes use clip duration. Also if time varying is disabled.
         if (!useExistingKeyframes || !scaleProp.isTimeVarying()) {
-            clipDurationSeconds = clip.duration.seconds;
+            if (placeAtTransitionEnds){
+
+                clipDurationSeconds = clip.duration.seconds - leftTrans.duration.seconds - rightTrans.duration.seconds;
+            } else {
+                clipDurationSeconds = clip.duration.seconds
+            }
             useExistingKeyframes = false; // Set to false in case we got here because isTimeVarying is false
         } else {
             var keyTimes = scaleProp.getKeys();
@@ -1330,22 +1416,29 @@ var ThioUtils = (function () {
             scaleProp.setValueAtKey(keyTimes[0], startScale, true);
             scaleProp.setValueAtKey(keyTimes[1], endScale, true);
         } else {
+            if (placeAtTransitionEnds) {
+                var startKeyTime = leftTrans.internalEnd  // The end of the opening transition
+                var endKeyTime = rightTrans.internalStart // The start of the closing transition
+            } else {
+                var startKeyTime = clip.inPoint
+                var endKeyTime = clip.outPoint
+            }
             // Clear any existing keyframes by disabling and re-enabling time varying
-            scaleProp.setTimeVarying(false);
-            scaleProp.setTimeVarying(true);
+            scaleProp.setTimeVarying(false)
+            scaleProp.setTimeVarying(true)
 
             // SET THE TWO KEYFRAMES
             // --- Start Keyframes ---
-            scaleProp.addKey(clip.inPoint);
-            scaleProp.setValueAtKey(clip.inPoint, startScale, true);
+            scaleProp.addKey(startKeyTime)
+            scaleProp.setValueAtKey(startKeyTime, startScale, true)
 
             // --- End Keyframes ---
             // Create time object for time at a single frame prior to endpoint because otherwise if we line up the playhead to the keyframe it won't show the clip in the preview
             var endTimeObjToUse = new Time()
-            endTimeObjToUse.ticks = (Number(clip.outPoint.ticks) - Number(ThioUtils.singleFrameTimeObject(sequence).ticks)).toString()
+            endTimeObjToUse.ticks = (Number(endKeyTime.ticks) - Number(ThioUtils.singleFrameTimeObject(sequence).ticks)).toString()
 
-            scaleProp.addKey(endTimeObjToUse);
-            scaleProp.setValueAtKey(endTimeObjToUse, endScale, true);
+            scaleProp.addKey(endTimeObjToUse)
+            scaleProp.setValueAtKey(endTimeObjToUse, endScale, true)
         }
     };
 
@@ -1461,6 +1554,24 @@ var ThioUtils = (function () {
     };
 
     /**
+     * Takes in any kind of time and converts to a Time object
+     * @param {Time|Number|String} inputTime 
+     * @returns {Time}
+     */
+    pub.makeTimeObjUniversal = function(inputTime) {
+        if (inputTime instanceof Time) {
+            return inputTime
+        } else if (typeof inputTime === 'number') {
+            return this.secondsToTimeObject(inputTime)
+        } else if (typeof inputTime === 'string') {
+            return this.ticksToTimeObject(inputTime)
+        } else {
+            var inputtedType = typeof inputTime
+            throw new Error("makeTimeObjUniversal Error: inputTime must be a Time object, number (seconds), or string (ticks). Type was: " + inputtedType)
+        }
+    }
+
+    /**
      * Creates a Time object representing a single frame duration based on the sequence's timebase.
      * @param {Sequence=} sequence The sequence object to get the timebase from. If not provided, active sequence will be used.
      * @return {Time} A Time object representing the duration of a single frame in seconds.
@@ -1525,13 +1636,25 @@ var ThioUtils = (function () {
     /**
      * Convert a time object to a formatted string based on the sequence's frame rate and display format.
      * @param {Time} timeObj
+     * @param {boolean=} useAudioFormat Whether to use audioDisplayFormat. Defaults to false and uses videoDisplayFormat
      * @returns {string} A formatted timecode string representing the time object.
      */
-    pub.getTimecodeString_FromTimeObject = function (timeObj) {
+    pub.getTimecodeString_FromTimeObject = function (timeObj, useAudioFormat) {
         var frameRateTicks = app.project.activeSequence.timebase;
         var frameRateTimeObj = this.ticksToTimeObject(frameRateTicks);
-        var videoDisplayFormat = app.project.activeSequence.getSettings().videoDisplayFormat;
-        return timeObj.getFormatted(frameRateTimeObj, videoDisplayFormat).toString();
+
+        if (typeof useAudioFormat === 'undefined' || useAudioFormat === undefined || useAudioFormat === null) {
+            useAudioFormat = false;
+        }
+
+        var formatToUse = null
+        if (useAudioFormat) {
+            formatToUse = app.project.activeSequence.getSettings().audioDisplayFormat;
+        } else {
+            formatToUse = app.project.activeSequence.getSettings().videoDisplayFormat;
+        }
+
+        return timeObj.getFormatted(frameRateTimeObj, formatToUse).toString();
     };
 
     /**
@@ -1824,7 +1947,7 @@ var ThioUtils = (function () {
      * @returns {T[]} An array containing the items from the collection.
      */
     pub.convertToArray = function (obj) {
-        if (obj == null) { return []; }
+        if (typeof obj === 'undefined' || obj === undefined || obj === null) { return [] }
         if (Array.isArray(obj)) { return obj; }
 
         /** Cast to any to avoid TypeScript issues with property access 
@@ -1871,7 +1994,7 @@ var ThioUtils = (function () {
             }
         }
         return false;
-    };
+    }
 
 
     /**
@@ -1955,6 +2078,7 @@ var ThioUtils = (function () {
         }
     };
 
+    // region Transitions
     // ------------ Transitions Functions ------------
 
     /**
@@ -2100,8 +2224,8 @@ var ThioUtils = (function () {
                     (Math.abs(transEndTicks - clipStartTicks) < transitionDurationTicks)) {
                     leftTransition = {
                         name: transition.name,
-                        timelineStart: transition.start,
-                        timelineEnd: transition.end,
+                        timelineStart: ThioUtils.ticksToTimeObject(transStartTicks),
+                        timelineEnd: ThioUtils.ticksToTimeObject(transEndTicks),
                         duration: ThioUtils.ticksToTimeObject(transitionDurationTicks),
                         alignment: transition.alignment,
                         timelineEffectiveStart: effectiveStart,
@@ -2119,8 +2243,8 @@ var ThioUtils = (function () {
                     (Math.abs(transStartTicks - clipEndTicks) < transitionDurationTicks)) {
                     rightTransition = {
                         name: transition.name,
-                        timelineStart: transition.start,
-                        timelineEnd: transition.end,
+                        timelineStart: ThioUtils.ticksToTimeObject(transStartTicks),
+                        timelineEnd: ThioUtils.ticksToTimeObject(transEndTicks),
                         duration: ThioUtils.ticksToTimeObject(transitionDurationTicks),
                         alignment: transition.alignment,
                         timelineEffectiveStart: effectiveStart,
@@ -2147,6 +2271,7 @@ var ThioUtils = (function () {
         return clipTransitionInfo;
     }
 
+    // region Check Or Get
     // ------------ Check Or Get Functions -----------
 
     /**
@@ -2179,11 +2304,25 @@ var ThioUtils = (function () {
         }
     };
 
+    /**
+     * 
+     * @param {Time|Number|string=} time If given, returns a time object equivalent of the value (Time object, seconds, or ticks). Otherwise, returns current playhead position Time.
+     */
+    pub.checkOrGetCurrentTime = function(time) {
+        // If it's not null
+        if (typeof time !== 'undefined' && time != null && time != undefined) {
+            return this.makeTimeObjUniversal(time)
+        } else {
+            return app.project.activeSequence.getPlayerPosition()
+        }
+    }
+
+    //region Project
     // ------------------ Project ------------------
 
     /**
      * Retrieves a bin from the project items panel. Can also find a bin within another bin if provided, otherwise searches root.
-     * @param {string} binName 
+     * @param {string} binName The name of the bin
      * @param {ProjectItem=} rootToSearch 
      * @returns {ProjectItem|null} Returns the bin with the specified name, or null if not found.
      */
@@ -2203,32 +2342,241 @@ var ThioUtils = (function () {
     }
 
     /**
-     * Finds an item within a provided bin and returns the project item object.
-     * @param {ProjectItem} binObj 
-     * @param {string} itemName 
-     * @returns {ProjectItem|null} Returns the item with the specified name, or null if not found.
+     * Get a bin object by specifying its location in the project panel using path-like syntax (use forward slashes to separate the level).
+     * @param {string} binPath The path to the bin, using forward slashes to separate levels (e.g. "Whatever Bin/Sub Bin 1/Sub Bin 2").
+     * @param {ProjectItem=} binRelativeStart Optional: A bin object to start in, making binPath relative. If not provided, starts at the project root.
+     * @returns {ProjectItem|null} Returns the bin object at the specified path, or null if not found.
      */
-    pub.getItemInBinByName = function(binObj, itemName) {
-        if (binObj.type != ProjectItemType.BIN) {
-            alert("getItemInBinByName Error: Provided object does not appear to be a bin.");
+    pub.getBinByPath = function(binPath, binRelativeStart) {
+        if (typeof binRelativeStart === 'undefined' || binRelativeStart === undefined || binRelativeStart === null) {
+            binRelativeStart = app.project.rootItem
+        }
+
+        var pathParts = binPath.split("/");
+        var currentBin = binRelativeStart;
+        for (var i = 0; i < pathParts.length; i++) {
+            var part = pathParts[i];
+            var foundBin = this.getBinByName(part, currentBin);
+            if (foundBin) {
+                currentBin = foundBin;
+            } else {
+                $.writeln("getBinByPath: Bin not found at path part: " + part);
+                return null;
+            }
+        }
+        return currentBin;
+    }
+
+    /**
+     * Finds an item within the project panel and returns the project item object, using path-like syntax to specify the item's location
+     * @param {string} itemPath The path to the item, using forward slashes to separate levels (e.g. "Whatever Bin/Sub Bin 1/Item Name").
+     * @param {ProjectItem=} binRelativeStart Optional: A bin object to start in, making itemPath relative. If not provided, starts at the project root.
+     * @return {ProjectItem[]} Returns a list of matching item objects at the specified path
+     */
+    pub.getItemByPath = function (itemPath, binRelativeStart) {
+        if (typeof binRelativeStart === 'undefined' || binRelativeStart === undefined || binRelativeStart === null) {
+            binRelativeStart = app.project.rootItem
+        }
+
+        // Get the last item of the path. This will be the item to find. Anything before it is the path
+        var pathParts = itemPath.split("/");
+        var itemName = pathParts.pop();
+        var binPath = pathParts.join("/");
+        var binToSearch = this.getBinByPath(binPath, binRelativeStart);
+        if (!binToSearch) {
+            $.writeln("getProjectItemByPath: Bin path not found: " + binPath);
             return null;
         }
+
+        return this.getItemInBinByName(binToSearch, itemName);
+    }
+
+    /**
+     * Finds an item within a provided bin and returns the project item object.
+     * @param {ProjectItem|null} binObj The bin object, or null to search the root (not in a bin). Or use `app.project.rootItem` directly
+     * @param {string} itemName 
+     * @returns {ProjectItem[]} Returns the item with the specified name, or null if not found.
+     */
+    pub.getItemInBinByName = function(binObj, itemName) {
+        var foundItems = []
+
+        if (typeof binObj === 'undefined' || binObj === undefined || binObj === null) {
+            binObj = app.project.rootItem;
+        } else if (binObj.type != ProjectItemType.BIN && binObj.type != ProjectItemType.ROOT) {
+            alert("getItemInBinByName Error: Provided object does not appear to be a bin.");
+            return foundItems
+        }
+
         if (typeof itemName === 'undefined' || itemName === undefined || itemName === null || (typeof itemName === 'string' && itemName === '')) {
             alert("getItemInBinByName Error: itemName must be provided and not be an empty string.");
-            return null;
+            return foundItems
         }
 
         for (var i = 0; i < binObj.children.numItems; i++) {
             var item = binObj.children[i];
             if (item.name === itemName) {
-                return item;
+                foundItems.push(item);
             }
         }
 
-        return null;
+        return foundItems
     }
 
-    // ------------------ Utility ------------------
+    // region Markers
+    // ------------------ Markers ------------------
+
+    /**
+     * Gets the marker color string from a marker color number / Index
+     * @param {Number} colorNum
+     * @returns {string} The marker color string corresponding to the provided color number.
+     */
+    pub.getMarkerColorString_fromNumber = function(colorNum) {
+        // Marker color must be represented as the index of the color in the marker panel
+        switch (colorNum) {
+            case 0:
+                return "Green";
+            case 1:
+                return "Red";
+            case 2:
+                return "Purple";
+            case 3:
+                return "Orange";
+            case 4:
+                return "Yellow";
+            case 5:
+                return "White";
+            case 6:
+                return "Blue";
+            case 7:
+                return "Cyan";
+            default:
+                return "Unknown";
+        }
+    }
+
+    /**
+     * Gets the marker color string from a Marker object
+     * @param {Marker} marker
+     * @returns {string} 
+     */
+    pub.getMarkerColorString = function(marker) {
+        var markerColorIndex = marker.getColorByIndex()
+        return this.getMarkerColorString_fromNumber(markerColorIndex);
+    }
+
+    /**
+     * Gets the name of the name of the marker which takes up the most time within the specified time range in the sequence
+     * @param {Time|Number|string} start The start time of the range
+     * @param {Time|Number|string} end The end time of the range
+     * @param {Sequence=} sequence Optional: The sequence to use. If not provided, will use the active sequence. 
+     * @returns {Marker|null} The name of the predominant marker, or null if none found.
+     */
+    pub.getPredominantMarker_ForTimeRange = function(start, end, sequence) {
+        var startTime = this.makeTimeObjUniversal(start)
+        var endTime = this.makeTimeObjUniversal(end)
+        var currSequence = this.checkOrGetActiveSequence(sequence)
+
+        // Get the markers within the in out region
+        if (currSequence.markers.numMarkers > 0) {
+            var markers = currSequence.markers
+            var maxMarker = null // The marker that encompasses the largest percentage of the time range
+            var maxMarkerPercent = -1 // The precentage of the time range that maxMarker takes up
+
+            for (var i = 0; i < markers.numMarkers; i++) {
+                var marker = markers[i]
+                var markerStartTime = marker.start
+                var markerEndTime = marker.end
+
+                // Check if any part of the marker is within the in-out range. 
+                if (markerEndTime.seconds > markerStartTime.seconds) { // Only count markers that have a duration
+
+                    if (markerEndTime.seconds > startTime.seconds && markerStartTime.seconds < endTime.seconds) {
+                        // Calculate the overlap duration
+                        var overlapStart = Math.max(markerStartTime.seconds, startTime.seconds)
+                        var overlapEnd = Math.min(markerEndTime.seconds, endTime.seconds)
+                        var overlapDuration = overlapEnd - overlapStart
+                        var inOutDuration = endTime.seconds - startTime.seconds
+                        var overlapPercent = overlapDuration / inOutDuration
+                        // Check if this marker has the highest overlap percentage
+                        if (overlapPercent > maxMarkerPercent) {
+                            maxMarkerPercent = overlapPercent;
+                            maxMarker = marker
+                        }
+                    }
+
+                }
+            }
+
+            // If an elegible marker was found
+            if (maxMarker !== null) {
+                return maxMarker
+            } else {
+                return null
+            }
+        }
+    }
+
+    /**
+     * Gets all markers at a specific time in the timeline.
+     * @param {Time|Number|string=} time Optional: The specific timeline time to check the markers. If not specified, uses the current playhead time.
+     * @param {Sequence=} sequence Optional: The sequence to use. If not provided, will use the active sequence.
+     * @returns {Marker[]} An array of markers found at the current time. May be empty if none were found.
+     */
+    pub.getMarkersAtTime = function(time, sequence) {
+        var timeToCheck = this.checkOrGetCurrentTime(time)
+        var sequenceToCheck = this.checkOrGetActiveSequence(sequence)
+        var foundMarkers = []
+
+        if (sequenceToCheck.markers.numMarkers > 0) {
+            var sequenceMarkers = sequenceToCheck.markers
+
+            for (var i = 0; i < sequenceMarkers.numMarkers; i++) {
+                var marker = sequenceMarkers[i]
+                var markerStartTime = marker.start
+                var markerEndTime = marker.end
+
+                // If it's a point marker without duration, just check if it's equal. Use ticks instead of seconds because of weird javascript rounding.
+                if (markerEndTime.ticks === markerStartTime.ticks && markerStartTime.ticks === timeToCheck.ticks) {
+                    foundMarkers.push(marker)
+                // If it has a duration, check if the time is within the start and end times
+                } else if (timeToCheck.seconds <= markerEndTime.seconds && timeToCheck.seconds >= markerStartTime.seconds) {
+                    foundMarkers.push(marker)
+                }
+            }
+        }
+        return foundMarkers
+    }
+
+    // region Utility
+    // ------------------ Utility ------------------ 
+
+    /**
+     * Gets the first available file name path in a folder by appending an incrementing number if the desired file name already exists.
+     * @param {string} desiredFileName The desired file name (with extension)
+     * @param {string} folderPath The folder path to check within
+     * @return {string} The full file path of the first available file name
+     */
+    pub.getFirstAvailableFileNamePath = function(desiredFileName, folderPath) {
+        // Get the file name's stem by splitting off the extension
+        var lastDotIndex = desiredFileName.lastIndexOf(".")
+        var fileNameStem = desiredFileName.substring(0, lastDotIndex)
+        var fileExt = desiredFileName.substring(lastDotIndex + 1)
+        var outputPath = folderPath + "\\" + desiredFileName
+
+        // Check if the file already exists and check whether to rename it or not
+        if (new File(outputPath).exists) {
+            // Ask the user if they want to overwrite the existing file
+            var counter = 2
+            var baseOutputPath = folderPath + "\\" + fileNameStem;
+
+            // Check for existing files and modify the output path if necessary
+            while (new File(outputPath).exists) {
+                outputPath = baseOutputPath + "_" + counter + "." + fileExt;
+                counter++
+            }
+        }
+        return outputPath
+    }
 
     /**
      * Equivalent of startsWith
@@ -2380,6 +2728,7 @@ var ThioUtils = (function () {
         return !this.isUndefined(variable);
     }
 
+    // region ThioUtils.dll
     // ================================ Functions That Utilize ThioUtils.dll ================================
 
     /**
@@ -2442,6 +2791,11 @@ var ThioUtils = (function () {
      * @param {string=} fallbackAlertMessage Optional: If provided, will show an alert with this message if ThioUtilsLib is not loaded.
      */
     pub.playSystemSound = function(aliasOrFilename, fallbackAlertMessage) {
+        if (this.startsWith(aliasOrFilename, "C:\\Windows\\Media\\")) {
+            // It's a full path, trim it off. It needs to be the media path anyway but expects just the relative path
+            aliasOrFilename = aliasOrFilename.replace("C:\\Windows\\Media\\", "");
+        }
+
         if (this.isThioUtilsLibLoaded()) {
             ThioUtilsLib.playSoundAlias(aliasOrFilename);
         } else if (typeof fallbackAlertMessage === 'undefined' || fallbackAlertMessage === undefined || fallbackAlertMessage === null || (typeof fallbackAlertMessage === 'string' && fallbackAlertMessage === '')) {
@@ -2469,6 +2823,7 @@ var ThioUtils = (function () {
         return false; // Return false if copy failed or ThioUtils is not loaded
     };
 
+    // region Categories
     // -----------------------------------------------------------------------------------------------------------------
     // --------------------------------------------------- Categories --------------------------------------------------
     // -----------------------------------------------------------------------------------------------------------------
@@ -2495,7 +2850,8 @@ var ThioUtils = (function () {
      */
     pub.cog = {
         checkOrGetActiveSequence: pub.checkOrGetActiveSequence,
-        checkOrGetSelectedClips: pub.checkOrGetSelectedClips
+        checkOrGetSelectedClips: pub.checkOrGetSelectedClips,
+        checkOrGetCurrentTime: pub.checkOrGetCurrentTime,
     };
 
     /**
@@ -2505,7 +2861,9 @@ var ThioUtils = (function () {
      */
     pub.project = {
         getBinByName: pub.getBinByName,
-        getItemInBinByName: pub.getItemInBinByName
+        getBinByPath: pub.getBinByPath,
+        getItemInBinByName: pub.getItemInBinByName,
+        getItemByPath: pub.getItemByPath,
     };
 
     /**
@@ -2517,6 +2875,7 @@ var ThioUtils = (function () {
         ticksToSeconds: pub.ticksToSeconds,
         ticksToTimeObject: pub.ticksToTimeObject,
         secondsToTimeObject: pub.secondsToTimeObject,
+        makeTimeObjUniversal: pub.makeTimeObjUniversal,
         singleFrameTimeObject: pub.singleFrameTimeObject,
         convertTimeObjectToNearestFrame: pub.convertTimeObjectToNearestFrame,
         getTimecodeString_FromTimeObject: pub.getTimecodeString_FromTimeObject,
@@ -2555,6 +2914,7 @@ var ThioUtils = (function () {
      */
     pub.edit = {
         fillFrameWithClip: pub.fillFrameWithClip,
+        moveClipsNewTime: pub.moveClipsNewTime,
         trimClipStart: pub.trimClipStart,
         trimClipEnd: pub.trimClipEnd,
         removeMotionKeyframes: pub.removeMotionKeyframes,
@@ -2599,7 +2959,20 @@ var ThioUtils = (function () {
         getSelectedSequencesQE: pub.getSelectedSequencesQE,
         clearSelections: pub.clearSelections,
         getSequenceFromProjectItem: pub.getSequenceFromProjectItem,
-    };
+        lockAllTracksInSequence: pub.lockAllTracksInSequence,
+    }
+
+    /**
+     * @namespace markers
+     * @memberof ThioUtils
+     * @description Functions for working with markers
+     */
+    pub.markers =  {
+        getMarkerColorString_fromNumber: pub.getMarkerColorString_fromNumber,
+        getMarkerColorString: pub.getMarkerColorString,
+        getPredominantMarker_ForTimeRange: pub.getPredominantMarker_ForTimeRange,
+        getMarkersAtTime: pub.getMarkersAtTime,
+    }
 
     /**
      * @namespace util
@@ -2612,6 +2985,7 @@ var ThioUtils = (function () {
         getCurrentScriptDirectory: pub.getCurrentScriptDirectory,
         joinPath: pub.joinPath,
         relativeToFullPath: pub.relativeToFullPath,
+        getFirstAvailableFileNamePath: pub.getFirstAvailableFileNamePath,
         startsWith: pub.startsWith,
         containsStr: pub.containsStr,
         getCallingFile: pub.getCallingFile,
