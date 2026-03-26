@@ -87,7 +87,7 @@ function sortTimeObjectNestedArray(timeObjArray) {
 }
 
 function MakeTimeCodeMMSS(timestampsArray, noLabels) {
-    var finalString = "\n"
+    var finalString = ""
 
     for (var i = 0; i < timestampsArray.length; i++) {
 
@@ -146,7 +146,7 @@ function MakeTimeCodeMMSS(timestampsArray, noLabels) {
         }
         
         // Add to the final string
-        finalString += timecode + separator + cleanedKey + "\n"
+        finalString += "\n" + timecode + separator + cleanedKey
     }
     return finalString;
 }
@@ -178,7 +178,7 @@ function getMaxOfPart(timeObjArray, partIndex) {
 }
 
 function makeTimeCodeAsIs(timeObjArray, noLabels) {
-    var finalString = "\n"
+    var finalString = ""
 
     for (var i = 0; i < timeObjArray.length; i++) {
         var key = timeObjArray[i][0]
@@ -241,7 +241,7 @@ function makeTimeCodeAsIs(timeObjArray, noLabels) {
             }
         }
 
-        finalString += reassembledTimecode + separator + cleanedKey + "\n"
+        finalString += "\n" + reassembledTimecode + separator + cleanedKey
     }
     return finalString;
 }
@@ -369,7 +369,7 @@ finalStringToPrint = MakeTimestamps(true, markerColorsInclude, coloredMarkerText
 if (markersColorsForSeparateTimestamps.length > 0) {
     var additionalString = MakeTimestamps(false, markersColorsForSeparateTimestamps, "", true, !showCommentsForAltTimestamps, altTimestampsExactTimecode)
     if (additionalString !== "") {
-        finalStringToPrint += "\n" + alternateTimestampsText + additionalString
+        finalStringToPrint += "\n\n" + alternateTimestampsText + additionalString
     }
 }
 

@@ -3,7 +3,7 @@
 //
 // How To use: Set the user settings below and run the script
 //
-// Requires the "Utils.jsx" file also from the repo to be in the same directory as this script, or in an "includes" folder in the same directory
+// Requires the "ThioUtils.jsx" file also from the repo to be in the same directory as this script, or in an "includes" folder in the same directory
 //
 // Author Repo: https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools
 
@@ -22,155 +22,32 @@ var effectPropertyName = "Scale";    // String
 var leftValue = null;    // Must be a number (can include decimal) -- Or null/undefined
 var rightValue = null;   // Must be a number (can include decimal) -- Or null/undefined
 
+// If there are already exactly 2 keyframes, whether to move them to the transition edges
+var moveExistingKeyframesToTransitionEdges = true; // Boolean true/false
+
 // ========================================================================================
 // ========================================================================================
 
-// ---------------------- Include Utils.jsx ----------------------
+// ---------------------- Include ThioUtils.jsx ----------------------
 function getCurrentScriptDirectory() { return (new File($.fileName)).parent; }
 function joinPath() { return Array.prototype.slice.call(arguments).join('/'); }
 function relativeToFullPath(relativePath) { return joinPath(getCurrentScriptDirectory(), relativePath); }
-try { eval("#include '" + relativeToFullPath("Utils.jsx") + "'"); }
+try { eval("#include '" + relativeToFullPath("ThioUtils.jsx") + "'"); }
 catch(e) {
-    try { eval("#include '" + relativeToFullPath("includes/Utils.jsx") + "'"); }
-    catch(e) { alert("Could not find Utils.jsx in the same directory as the script or in an includes folder."); } // Return optional here, if you're within a main() function
+    try { eval("#include '" + relativeToFullPath("includes/ThioUtils.jsx") + "'"); }
+    catch(e) { alert("Could not find ThioUtils.jsx in the same directory as the script or in an includes folder."); } // Return optional here, if you're within a main() function
 }
 // ---------------------------------------------------------------
 
 app.enableQE();
 
-function getTransitionsForSelectedClips(applyToAudioTracks, applyToVideoTracks) {
-    // Get the clip info from the existing function
-    var selectedClipsInfoList = getSelectedClipInfoQE();
-    if (!selectedClipsInfoList || !selectedClipsInfoList.length) {
-        //alert("No clip information available."); // The function will already alert if there is no selected clips
-        return;
-    }
-    
-    var qeSequence = qe.project.getActiveSequence(0);
-    var clipTransitionInfo = [];
-    var outputString = "";
-    
-    // Process each clip from the selected clip info
-    for (var i = 0; i < selectedClipsInfoList.length; i++) {
-        var clipData = selectedClipsInfoList[i];
 
-        if (!applyToAudioTracks && clipData.fullVanillaClipObject.mediaType === "Audio") continue;
-        if (!applyToVideoTracks && clipData.fullVanillaClipObject.mediaType === "Video") continue;
-
-        var trackItem = null;
-        if (clipData.fullVanillaClipObject.mediaType === "Video") {
-            trackItem = qeSequence.getVideoTrackAt(clipData.trackIndex);
-        }
-        else if (clipData.fullVanillaClipObject.mediaType === "Audio") {
-            trackItem = qeSequence.getAudioTrackAt(clipData.trackIndex);
-        } else {
-            alert("Unknown media type for clip: " + clipData.name);
-            continue;
-        }
-        
-        // Initialize transitions as null
-        var leftTransition = null;
-        var rightTransition = null;
-        
-        // Process transitions on the track
-        for (var j = 0; j < trackItem.numTransitions; j++) {
-            var transition = trackItem.getTransitionAt(j);
-            
-            // Skip if transition is null, undefined, or type "Empty"
-            if (!transition || transition.type === "Empty") continue;
-            
-            // Convert all values to numbers for comparison
-            var transStart = Number(transition.start.ticks);
-            var transEnd = Number(transition.end.ticks);
-            var clipStart = Number(clipData.startTicks);
-            var clipEnd = Number(clipData.endTicks);
-            
-            // Calculate actual transition boundaries considering alignment
-            var transitionDuration = transEnd - transStart;
-            var alignmentOffset = transitionDuration * Number(transition.alignment);
-            var effectiveStart = transStart + alignmentOffset;
-            var effectiveEnd = effectiveStart + transitionDuration;
-            
-            // Check if this is a left transition for this clip
-            // Either starts exactly at clip start (first clip case)
-            // Or ends near the clip start (transition between clips)
-            if (transStart === clipStart || 
-                (Math.abs(transEnd - clipStart) < transitionDuration)) {
-                leftTransition = {
-                    name: transition.name,
-                    startTicks: transition.start.ticks,
-                    endTicks: transition.end.ticks,
-                    duration: transition.duration,
-                    alignment: transition.alignment,
-                    effectiveStart: effectiveStart,
-                    effectiveEnd: effectiveEnd,
-                    fullTransitionObject: transition
-                };
-            }
-            
-            // Check if this is a right transition for this clip
-            // Either ends exactly at clip end (last clip case)
-            // Or starts near the clip end (transition between clips)
-            if (transEnd === clipEnd || 
-                (Math.abs(transStart - clipEnd) < transitionDuration)) {
-                rightTransition = {
-                    name: transition.name,
-                    startTicks: transition.start.ticks,
-                    endTicks: transition.end.ticks,
-                    duration: transition.duration,
-                    alignment: transition.alignment,
-                    effectiveStart: effectiveStart,
-                    effectiveEnd: effectiveEnd,
-                    fullTransitionObject: transition
-                };
-            }
-        }
-        
-        // Create combined info object
-        var combinedInfo = {
-            clipInfo: clipData,
-            transitions: {
-                left: leftTransition,
-                right: rightTransition
-            }
-        };
-        
-        clipTransitionInfo.push(combinedInfo);
-        
-        // Build output string for debugging
-        outputString += "Clip " + (i + 1) + ":\n";
-        outputString += "Name: " + clipData.name + "\n";
-        outputString += "Media Type: " + clipData.vanillaMediaType + "\n";
-        outputString += "Clip Start: " + clipData.startTicks + "\n";
-        outputString += "Clip End: " + clipData.endTicks + "\n";
-        
-        if (leftTransition) {
-            outputString += "Left Transition: " + leftTransition.name + "\n";
-            outputString += "  Start: " + leftTransition.startTicks + "\n";
-            outputString += "  End: " + leftTransition.endTicks + "\n";
-            outputString += "  Alignment: " + leftTransition.alignment + "\n";
-            outputString += "  Effective Start: " + leftTransition.effectiveStart + "\n";
-            outputString += "  Effective End: " + leftTransition.effectiveEnd + "\n";
-        }
-        
-        if (rightTransition) {
-            outputString += "Right Transition: " + rightTransition.name + "\n";
-            outputString += "  Start: " + rightTransition.startTicks + "\n";
-            outputString += "  End: " + rightTransition.endTicks + "\n";
-            outputString += "  Alignment: " + rightTransition.alignment + "\n";
-            outputString += "  Effective Start: " + rightTransition.effectiveStart + "\n";
-            outputString += "  Effective End: " + rightTransition.effectiveEnd + "\n";
-        }
-        
-        outputString += "\n";
-    }
-    
-    //alert(outputString);  // For debugging, uncomment
-    return clipTransitionInfo;
-}
-
-
-
+/**
+ * @param {TrackItem} clip 
+ * @param {string} componentName 
+ * @param {string} propertyName 
+ * @returns {ComponentParam}
+ */
 function findProperty(clip, componentName, propertyName) {
     // Component name is basically the effect name, and property name is the particular parameter name for the effect
     // Convert search terms to lowercase for case-insensitive comparison
@@ -208,24 +85,60 @@ function findProperty(clip, componentName, propertyName) {
     return property;
 }
 
-function calculateTransitionTime(clipStartTicks, transitionTicks) {
+/**
+ * 
+ * @param {string|Number} clipStartTicks 
+ * @param {string|Number} transitionTicks 
+ * @returns {Number} Time in seconds
+ */
+function calculateTransitionTimeSeconds(clipStartTicks, transitionTicks) {
     return (Number(transitionTicks) - Number(clipStartTicks)) / 254016000000;
 }
 
-function addTransitionScaleKeyframes(applyToAudioTracks, applyToVideoTracks, effectComponentName, effectPropertyName, leftValue, rightValue) {
-    var transitionsInfo = getTransitionsForSelectedClips(applyToAudioTracks, applyToVideoTracks);
+/**
+ * 
+ * @param {boolean} applyToAudioTracks 
+ * @param {boolean} applyToVideoTracks 
+ * @param {string} effectComponentName 
+ * @param {string} effectPropertyName 
+ * @param {Number|null} leftValue 
+ * @param {Number|null} rightValue 
+ * @param {boolean} moveExistingKeyframesToTransitionEdges
+ */
+function addTransitionScaleKeyframes(applyToAudioTracks, applyToVideoTracks, effectComponentName, effectPropertyName, leftValue, rightValue, moveExistingKeyframesToTransitionEdges) {
+    // Get selected clips
+    var selectedClips = app.project.activeSequence.getSelection();
+    var transitionsInfo = ThioUtils.getTransitionsForSelectedClips(selectedClips, applyToAudioTracks, applyToVideoTracks);
 
     for (var i = 0; i < transitionsInfo.length; i++) {
         var currentClip = transitionsInfo[i];
         var leftTrans = currentClip.transitions.left;
         var rightTrans = currentClip.transitions.right;
         var vanillaClip = currentClip.clipInfo.fullVanillaClipObject;
-        
+        var initialValue = null;
+
         // Get the scale property for this clip
         var effectPropertyObject = findProperty(vanillaClip, effectComponentName, effectPropertyName);
-        if (!effectPropertyObject) continue;
+        if (!effectPropertyObject) {
+            alert("addTransitionScaleKeyframes Error: Could not find the specified effect property on the clip: " + vanillaClip.name);
+            return;
+        }
 
-        var initialValue = null;
+        // First get any existing keyframes for later just in case
+        var existingStartKeyTime = null;
+        var existingEndKeyTime = null;
+        var existingStartKeyValue = null;
+        var existingEndKeyValue = null;
+
+        if (effectPropertyObject.isTimeVarying()) {
+            var allKeys = effectPropertyObject.getKeys();
+            if (allKeys.length === 2) {
+                existingStartKeyTime = allKeys[0];
+                existingEndKeyTime = allKeys[1];
+                existingStartKeyValue = effectPropertyObject.getValueAtKey(existingStartKeyTime);
+                existingEndKeyValue = effectPropertyObject.getValueAtKey(existingEndKeyTime);
+            }
+        }
 
         if (!effectPropertyObject.isTimeVarying()) {
             initialValue = effectPropertyObject.getValue();
@@ -235,13 +148,17 @@ function addTransitionScaleKeyframes(applyToAudioTracks, applyToVideoTracks, eff
 
         // Add keyframe at end of left transition if it exists
         if (leftTrans) {
-            var leftTransTime = calculateTransitionTime(currentClip.clipInfo.startTicks, leftTrans.endTicks);
-            var leftKeyTime = vanillaClip.inPoint.seconds + leftTransTime;
+            var leftTransTimeSeconds = calculateTransitionTimeSeconds(currentClip.clipInfo.startTicks, leftTrans.timelineEnd.ticks);
+            var leftKeyTime = ThioUtils.secondsToTimeObject(vanillaClip.inPoint.seconds + leftTransTimeSeconds);
             var leftValueToUse;
+            var doMoveLeftKeyframe = false;
             
             // Set the value. If the clip was not time varying, set the initial scale
             if (leftValue != null && leftValue != undefined) {
                 leftValueToUse = Number(leftValue);
+            } else if (moveExistingKeyframesToTransitionEdges && existingStartKeyTime && existingEndKeyTime) {
+                leftValueToUse = existingStartKeyValue;
+                doMoveLeftKeyframe = true;
             }
             else if (initialValue) {
                 leftValueToUse = initialValue;
@@ -251,19 +168,29 @@ function addTransitionScaleKeyframes(applyToAudioTracks, applyToVideoTracks, eff
             }
 
             // Add the key and set the value
-            effectPropertyObject.addKey(leftKeyTime);
-            effectPropertyObject.setValueAtKey(leftKeyTime, leftValueToUse, 1); // Third parameter is UpdateUI and ensures the change is reflected in the UI
+            var addKeySuccess = effectPropertyObject.addKey(leftKeyTime);
+            var setValueSuccess = effectPropertyObject.setValueAtKey(leftKeyTime, leftValueToUse, 1); // Third parameter is UpdateUI and ensures the change is reflected in the UI
+
+            // addKey and setValueAtKey return null or true on success apparently, always false on failure
+            if (addKeySuccess !== false && setValueSuccess !== false && doMoveLeftKeyframe) {
+                // If we are moving existing keyframes, remove the old one
+                effectPropertyObject.removeKey(existingStartKeyTime);
+            }
         }
         
         // Add keyframe at start of right transition if it exists
         if (rightTrans) {
             // For right transition, calculate time relative to outPoint instead
-            var rightTransDuration = calculateTransitionTime(rightTrans.startTicks, currentClip.clipInfo.endTicks);
-            var rightKeyTime = vanillaClip.outPoint.seconds - rightTransDuration;       
+            var rightTransDurationSeconds = calculateTransitionTimeSeconds(rightTrans.timelineStart.ticks, currentClip.clipInfo.endTicks);
+            var rightKeyTime = ThioUtils.secondsToTimeObject(vanillaClip.outPoint.seconds - rightTransDurationSeconds);       
             var rightValueToUse;
+            var doMoveRightKeyframe = false;
 
             if (rightValue != null && rightValue != undefined) {
                 rightValueToUse = Number(rightValue);
+            } else if (moveExistingKeyframesToTransitionEdges && existingStartKeyTime && existingEndKeyTime) {
+                rightValueToUse = existingEndKeyValue;
+                doMoveRightKeyframe = true;
             }
             else if (initialValue) {
                 rightValueToUse = initialValue;
@@ -271,10 +198,16 @@ function addTransitionScaleKeyframes(applyToAudioTracks, applyToVideoTracks, eff
                 rightValueToUse = effectPropertyObject.getValueAtTime(rightKeyTime);
             }
 
-            effectPropertyObject.addKey(rightKeyTime);
-            effectPropertyObject.setValueAtKey(rightKeyTime, rightValueToUse, 1); // Third parameter is UpdateUI and ensures the change is reflected in the UI
+            var addKeySuccess = effectPropertyObject.addKey(rightKeyTime);
+            var setValueSuccess = effectPropertyObject.setValueAtKey(rightKeyTime, rightValueToUse, 1); // Third parameter is UpdateUI and ensures the change is reflected in the UI
+
+            // addKey and setValueAtKey return null or true on success apparently, always false on failure
+            if (addKeySuccess !== false && setValueSuccess !== false && doMoveRightKeyframe) {
+                // If we are moving existing keyframes, remove the old one
+                effectPropertyObject.removeKey(existingEndKeyTime);
+            }
         }
     }
 }
 
-addTransitionScaleKeyframes(applyToAudioTracks, applyToVideoTracks, effectComponentName, effectPropertyName, leftValue, rightValue);
+addTransitionScaleKeyframes(applyToAudioTracks, applyToVideoTracks, effectComponentName, effectPropertyName, leftValue, rightValue, moveExistingKeyframesToTransitionEdges);

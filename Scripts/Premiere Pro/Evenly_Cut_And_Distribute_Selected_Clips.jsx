@@ -8,16 +8,18 @@
 //
 // Author Repo: https://github.com/ThioJoe/Adobe-Apps-Scripts-And-Tools
 
-// ---------------------- Include ThioUtils.jsx ----------------------
+// ---------------------- Include Thio Utils ---------------------------
 function getCurrentScriptDirectory() { return (new File($.fileName)).parent; }
 function joinPath() { return Array.prototype.slice.call(arguments).join('/'); }
 function relativeToFullPath(relativePath) { return joinPath(getCurrentScriptDirectory(), relativePath); }
 try { eval("#include '" + relativeToFullPath("ThioUtils.jsx") + "'"); }
 catch(e) {
-    try { var oErr = e; eval("#include '" + relativeToFullPath("includes/ThioUtils.jsx") + "'"); }
-    catch(e) { alert("Could not find ThioUtils.jsx in the same directory as the script or in an includes folder." + "\n\nFull Errors: \n" + oErr + "\n" + e); } // Return optional here, if you're within a main() function
-}
-// ---------------------------------------------------------------
+    try { var e1=e; eval("#include '" + relativeToFullPath("includes/ThioUtils.jsx") + "'"); } // Check Utils folder
+    catch(e) { var e2=e; try { eval("#include '" + relativeToFullPath("../ThioUtils.jsx") + "'"); } // Check parent directory
+    catch (e) { var e3=e; try { eval("#include '" + relativeToFullPath("../includes/ThioUtils.jsx") + "'"); } // Check parent includes folder
+    catch (e) { var e4=e; alert("Could not find ThioUtils.jsx in current dir, includes folder, or parent dir." + "\n\nAll Attempt Errors: \n"+e1+"\n"+e2+"\n"+e2+"\n"+e3+"\n"+e4); } // Return optional here, if you're within a main() function
+}}}
+// ----------------------------------------------------------------------
 
 // If true, the clips will effectively be purely trimmed/untrimmed to their new placements so the inPoint and Outpoint within the clips stay in place
 // If false, the start point of the clips will be moved to the new position

@@ -23,11 +23,6 @@ catch(e) {
 // Use $ to declare in global scope so it can be accessed by the pasting script
 $.global.propertyValuesAtTimeDict = {};
 
-var selectedClips = app.project.activeSequence.getSelection();
-var selectedClip = selectedClips[0];
-    
-var internalPlayheadPos = ThioUtils.GetPlayheadPosition_WithinSource_AsTicks(false);
-
 // Get a specific property from a component, or all of them. Returns an array of property objects
 function GetEffectComponentPropertyArray(component, propertyName) {
     var propertyArray = [];
@@ -51,6 +46,28 @@ function GetEffectComponentPropertyArray(component, propertyName) {
 }
 
 function main() {
+    var selectedClip = null
+    var selectedClips = app.project.activeSequence.getSelection()
+
+    // If there's 2, it's probably audio and video, so just get the video
+    if (selectedClips.length > 1) {
+        for (var i = 0; i < selectedClips.length; i++) {
+            var item = selectedClips[i];
+            if (item.mediaType === "Video") {
+                selectedClip = item;
+            }
+        }
+    } else {
+        selectedClip = selectedClips[0]
+    }
+
+    if (selectedClip == null) {
+        alert("Please select a single clip first.");
+        return null
+    }
+
+    var internalPlayheadPos = ThioUtils.GetPlayheadPosition_WithinSource_AsTicks(false);
+
     var motionComponent = ThioUtils.GetEffectComponent(selectedClip, "Motion");
     var propertyToCopy = null; // Leave null to copy all properties, otherwise specify the property name to get only 1 
     var propertyArray = GetEffectComponentPropertyArray(motionComponent, propertyToCopy);
