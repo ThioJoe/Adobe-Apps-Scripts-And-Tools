@@ -1072,6 +1072,94 @@ var ThioUtils = (function () {
         return this.ConvertTimelineTicksToSourceTicks(selectedClip, playheadTimelinePositionTicks);
     };
 
+    /**
+     * Move inputted clips to a new time in the sequence on the same track
+     * @param {TrackItem[]} clips 
+     * @param {Number|Time} newStartTime Either a time object or seconds number
+     * @param {Sequence=} sequence Optional: The sequence the clips are on. Defaults to active sequence.
+     * @param {boolean=} copy FALSE NOT FULLY WORKING. Optional: If true, will keep the original clips and copy them to the new time instead of moving. Default: true
+     */
+    pub.moveClipsNewTime = function(clips, newStartTime, sequence, copy) {
+        sequence = this.checkOrGetActiveSequence(sequence) // Defaults to active sequence if not provided.
+
+        if (typeof copy === 'undefined' || copy === undefined || copy === null) {
+            copy = true // Eventually we want this false but it doesn't work it only removes one of the linked clips
+        }
+
+        if (newStartTime instanceof Time) {
+            newStartTime = newStartTime.seconds
+        }
+
+        for (var i = 0; i < clips.length; i++) {
+            var clip = clips[i];
+            var originalStartTickTime = TickTime.createWithTicks(clip.start.ticks)
+            var originalEndTickTime = TickTime.createWithTicks(clip.end.ticks)
+            var clipDurationTickTime = originalEndTickTime.subtract(originalStartTickTime)          
+
+            var sequenceFPS = new FrameRate()
+            sequenceFPS.ticksPerFrame = Number(sequence.timebase) // Do NOT use .createWithValue(), that's apparently if you are inputting the framerate not ticks per frame
+
+            var newInPointTickTime = TickTime.createWithSeconds(newStartTime); // Create a new TickTime object with the updated inpoint seconds
+            newInPointTickTime = newInPointTickTime.alignToNearestFrame(sequenceFPS); // Align to the nearest frame based on the source frame rate
+
+            var newEndTickTime = newInPointTickTime.add(clipDurationTickTime)
+            var newOutPointTickTime = newEndTickTime.alignToNearestFrame(sequenceFPS)
+
+            // We have to convert the TickTime objects to regular Time objects
+            var newTimeObjStart = new Time();
+            var newTimeObjEnd = new Time();
+            newTimeObjStart.ticks = newInPointTickTime.ticks;
+            newTimeObjEnd.ticks = newOutPointTickTime.ticks;
+            
+            // Before inserting/overwrite, set the inpoint/outpoint on the project item to be the same size as the clip
+            clip.projectItem.setInPoint(clip.inPoint, 4) // 2nd Param: 1 = video only, 2 = audio only, 4 = all media type
+            clip.projectItem.setOutPoint(clip.outPoint, 4)
+
+            // Get the type of media, whether audio or video. We will then check the linked clips to get the parent track of the linked clip to know which track each goes to
+            var inputtedClipMediaType = clip.mediaType; // "video" or "audio"
+            var linkedClipMediaType = null
+            var linkedClips = clip.getLinkedItems()
+            var linkedClip = null
+            
+            for (var l = 0; l < linkedClips.length; l++) {
+                // Find the linked clip which is not the main clip
+                if (linkedClips[l].mediaType !== inputtedClipMediaType) {
+                    linkedClip = linkedClips[l]
+                    linkedClipMediaType = linkedClip.mediaType
+                    break
+                }
+            }
+            // Default to parentTrackIndex
+            var audioClipTrackIndex = clip.parentTrackIndex
+            var videoClipTrackIndex = clip.parentTrackIndex
+
+            if (linkedClipMediaType != null) {
+                if (linkedClipMediaType === "Audio") {
+                    audioClipTrackIndex = linkedClip.parentTrackIndex
+                } else if (linkedClipMediaType === "Video") {
+                    videoClipTrackIndex = linkedClip.parentTrackIndex
+                }
+            }
+            // Now set the main clip parent track index. It shouldn't be the same media type but in case it is we'll set it after the linked clip so it takes priority
+            if (inputtedClipMediaType === "Audio") {
+                audioClipTrackIndex = clip.parentTrackIndex
+            } else if (inputtedClipMediaType === "Video") {
+                videoClipTrackIndex = clip.parentTrackIndex
+            }
+
+            // Adds the clip
+            sequence.overwriteClip(clip.projectItem, newTimeObjStart, videoClipTrackIndex, audioClipTrackIndex) // Add 1 because they're 1-indexed
+            // sequence.insertClip(clip.projectItem, newTimeObjStart, clip.parentTrackIndex + 1, clip.parentTrackIndex + 1)  // Test doing clipInsert instead
+
+            if (copy !== true) {
+                var linkedItems = clip.getLinkedItems()
+                // Remove the original clip and its linked items
+                for (var l = 0; l < linkedItems.length; l++) {
+                    linkedItems[l].remove(false, true)
+                }
+            }
+        }
+    }
 
     /**
      * Trims the start of a clip without moving the remaining part of the clip.
