@@ -1453,17 +1453,26 @@ var ThioUtils = (function () {
             }
         }
 
+        var leftDuration = 0
+        var rightDuration = 0
         // If not set to use existing keyframes use clip duration. Also if time varying is disabled.
         if (!useExistingKeyframes || !scaleProp.isTimeVarying()) {
-            if (placeAtTransitionEnds){
+            if (placeAtTransitionEnds) {
+                if (leftTrans != null) { leftDuration = leftTrans.duration.seconds }
+                if (rightTrans != null) { rightDuration = rightTrans.duration.seconds}
 
-                clipDurationSeconds = clip.duration.seconds - leftTrans.duration.seconds - rightTrans.duration.seconds;
+                clipDurationSeconds = clip.duration.seconds - leftDuration - rightDuration;
             } else {
                 clipDurationSeconds = clip.duration.seconds
             }
             useExistingKeyframes = false; // Set to false in case we got here because isTimeVarying is false
         } else {
             var keyTimes = scaleProp.getKeys();
+            if (typeof keyTimes === 'undefined' || keyTimes === undefined || keyTimes === null) {
+                if (!silent) { alert("AutoSpeedScaleExpand Error: Unexpected number of keys. Can't continue.") }
+                return
+            }
+
             // If too many keys
             if (keyTimes.length > 2) {
                 if (!silent) { alert("AutoSpeedScaleExpand Error: useExistingKeyframes is true but the clip has more than two keyframes. Please ensure it only has 2 keyframes (for start and end) for this function to work correctly, or set useExistingKeyframes false.\n\nClip Name: " + clip.name); }
@@ -1481,8 +1490,8 @@ var ThioUtils = (function () {
                 // Shouldn't be negative but just in case. Not sure how that would affect the expansion/shrinkage though.
                 clipDurationSeconds = Math.abs(keyTimes[1].seconds - keyTimes[0].seconds);
             } else {
-                    if (!silent) { alert("AutoSpeedScaleExpand Error: Unexpected number of keys. Can't continue.") }
-                return;
+                if (!silent) { alert("AutoSpeedScaleExpand Error: Unexpected number of keys. Can't continue.") }
+                return
             }
         }
 
@@ -1501,16 +1510,26 @@ var ThioUtils = (function () {
         // This should only be true if there's exactly two keyframes
         if (useExistingKeyframes) {
             var keyTimes = scaleProp.getKeys();
+            if (typeof keyTimes === 'undefined' || keyTimes === undefined || keyTimes === null) {
+                if (!silent) { alert("AutoSpeedScaleExpand Error: Unexpected number of keys. Can't continue.") }
+                return
+            }
+            
             scaleProp.setValueAtKey(keyTimes[0], startScale, true);
             scaleProp.setValueAtKey(keyTimes[1], endScale, true);
         } else {
-            if (placeAtTransitionEnds) {
+            if (placeAtTransitionEnds && leftTrans != null) {
                 var startKeyTime = leftTrans.internalEnd  // The end of the opening transition
-                var endKeyTime = rightTrans.internalStart // The start of the closing transition
             } else {
                 var startKeyTime = clip.inPoint
+            }
+
+            if (placeAtTransitionEnds && rightTrans != null) {
+                var endKeyTime = rightTrans.internalStart // The start of the closing transition
+            } else {
                 var endKeyTime = clip.outPoint
             }
+
             // Clear any existing keyframes by disabling and re-enabling time varying
             scaleProp.setTimeVarying(false)
             scaleProp.setTimeVarying(true)
