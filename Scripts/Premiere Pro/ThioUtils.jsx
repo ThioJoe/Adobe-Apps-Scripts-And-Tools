@@ -2847,6 +2847,15 @@ var ThioUtils = (function () {
     };
 
     /**
+     * @returns {void}
+     */
+    pub.unloadThioUtilsLib = function () {
+        if (typeof ThioUtilsLib !== 'undefined' && ThioUtilsLib != null && ThioUtilsLib != undefined) {
+            ThioUtilsLib.unload()
+        }
+    };
+
+    /**
      * Plays a system error sound if the external ThioUtils library is loaded, or shows an alert otherwise.
      * Useful for notifying the user of errors or important events without interrupting with an alert box.
      * @param {string|null} fallbackAlertMessage
@@ -2929,6 +2938,22 @@ var ThioUtils = (function () {
 
         return false; // Return false if copy failed or ThioUtils is not loaded
     };
+
+    /**
+     * Get the text from the clipboard.
+     * @returns {string|null}
+     */
+    pub.getClipboardText = function() {
+
+        if (this.isThioUtilsLibLoaded()) {
+            var textToReturn = ThioUtilsLib.getClipboardText();
+            return textToReturn
+        } else {
+            $.writeln("ThioUtils.dll not loaded. Can't use copyToClipboard function.");
+            alert("ThioUtils.dll not loaded. Can't use copyToClipboard function. Please ensure ThioUtils.jsx is included and ThioUtils.dll is available.");
+        }
+        return null
+    }
 
     // region Categories
     // -----------------------------------------------------------------------------------------------------------------
@@ -3110,11 +3135,13 @@ var ThioUtils = (function () {
      */
     pub.system = {
         isThioUtilsLibLoaded: pub.isThioUtilsLibLoaded,
+        unloadThioUtilsLib: pub.unloadThioUtilsLib,
         playErrorBeep: pub.playErrorBeep,
         playSuccessBeep: pub.playSuccessBeep,
         playSystemSoundID: pub.playSystemSoundID,
         playSystemSound: pub.playSystemSound,
-        copyToClipboard: pub.copyToClipboard
+        copyToClipboard: pub.copyToClipboard,
+        getClipboardText: pub.getClipboardText
     };
 
    
