@@ -14,7 +14,7 @@
 // ---------------------- Include Thio Utils ---------------------------
 // function getCurrentScriptDirectory() { return (new File($.fileName)).parent; }
 // function joinPath() { return Array.prototype.slice.call(arguments).join('/'); }
-// function relativeToFullPath(relativePath) { return joinPath(getCurrentScriptDirectory(), relativePath); }
+// /** @param {string} relPath */ function relativeToFullPath(relPath) { return joinPath(getCurrentScriptDirectory(), relPath); }
 // try { eval("#include '" + relativeToFullPath("ThioUtils.jsx") + "'"); }
 // catch(e) {
 //     try { var e1=e; eval("#include '" + relativeToFullPath("includes/ThioUtils.jsx") + "'"); } // Check Utils folder
@@ -120,7 +120,7 @@ if (incEs5Shim !== null) {
         eval(incEs5Shim);
     } catch (e) {
         $.writeln("Error including es5-shim.js. " + e.toString());
-        alert("Error -- Found ThioUtilsLib.jsx but failed to load it. Some functionality will not be available. \n\nError Message:\n" + e.toString());
+        alert("Error -- Found ThioUtilsLib.jsx but failed to load it because es5-shim.js failed to load. Some functionality will not be available. \n\nError Message:\n" + e.toString());
     }
 }
 
@@ -404,7 +404,7 @@ var ThioUtils = (function () {
      */
     pub.getSequenceFromProjectItem = function (projectItem) {
         var projItemNodeID = projectItem.nodeId;
-
+        
         var allSequences = app.project.sequences;
         for (var i = 0; i < allSequences.numSequences; i++) {
             if (allSequences[i].projectItem.nodeId === projItemNodeID) {
