@@ -40,7 +40,7 @@ static bool findSubstringIgnoreCase(const std::string& str, const std::string& s
 
 extern "C" THIOUTILS_API char* ESInitialize(const TaggedData** argv, long argc)
 {
-    static char funcNames[] = "systemBeep_u,playSoundAlias_s,copyTextToClipboard_s,getVersion_s";
+    static char funcNames[] = "systemBeep_u,playSoundAlias_s,copyTextToClipboard_s,getClipboardText_s,getVersion_s";
     return funcNames;
 }
 
@@ -334,5 +334,85 @@ extern "C" THIOUTILS_API long copyTextToClipboard(TaggedData* argv, long argc, T
 
     // Success case
     retval->data.intval = kESErrOK;
+    return kESErrOK;
+}
+
+
+/**
+ * @brief Retrieves text from the system clipboard.
+ * @param argv JavaScript arguments. Expects no arguments.
+ * @param argc Argument count. Should be 0.
+ * @param retval Return value - will contain the clipboard text as a string, or undefined on error.
+ * @return kESErrOK on success, or an error code.
+ *
+ * JavaScript Usage: var clipboardText = externalLibrary.getClipboardText();
+ */
+extern "C" THIOUTILS_API long getClipboardText(TaggedData* argv, long argc, TaggedData* retval) {
+    // Default to undefined in case of error
+    retval->type = kTypeUndefined;
+
+    if (argc != 0) {
+        return kESErrBadArgumentList;
+    }
+
+#ifdef _WIN32
+    // Open the clipboard
+    if (!OpenClipboard(NULL)) {
+        return THIO_ERR_CLIPBOARD_BUSY;
+    }
+
+    // Get the clipboard data
+    HANDLE hData = GetClipboardData(CF_UNICODETEXT);
+    if (hData == NULL) {
+        CloseClipboard();
+        // No text data in clipboard - return empty string instead of error
+        retval->type = kTypeString;
+        retval->data.string = _strdup("");
+        return kESErrOK;
+    }
+
+    // Lock the memory to get a pointer to the data
+    LPCWSTR pClipboardText = (LPCWSTR)GlobalLock(hData);
+    if (pClipboardText == NULL) {
+        CloseClipboard();
+        return THIO_ERR_CLIPBOARD_LOCK_FAILED;
+    }
+
+    // Convert UTF-16 (WCHAR) to UTF-8 for ExtendScript
+    int utf8Size = WideCharToMultiByte(CP_UTF8, 0, pClipboardText, -1, NULL, 0, NULL, NULL);
+    if (utf8Size == 0) {
+        GlobalUnlock(hData);
+        CloseClipboard();
+        return kESErrConversion;
+    }
+
+    // Allocate memory for the UTF-8 string
+    char* utf8Text = (char*)malloc(utf8Size);
+    if (utf8Text == NULL) {
+        GlobalUnlock(hData);
+        CloseClipboard();
+        return THIO_ERR_NO_MEMORY;
+    }
+
+    // Perform the conversion
+    if (WideCharToMultiByte(CP_UTF8, 0, pClipboardText, -1, utf8Text, utf8Size, NULL, NULL) == 0) {
+        free(utf8Text);
+        GlobalUnlock(hData);
+        CloseClipboard();
+        return kESErrConversion;
+    }
+
+    // Unlock and close clipboard
+    GlobalUnlock(hData);
+    CloseClipboard();
+
+    // Set the return value
+    retval->type = kTypeString;
+    retval->data.string = utf8Text;  // ExtendScript will free this via ESFreeMem
+
+#elif defined(__APPLE__)
+    return THIO_ERR_NOT_IMPLEMENTED;
+#endif
+
     return kESErrOK;
 }

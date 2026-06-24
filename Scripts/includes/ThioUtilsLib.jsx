@@ -3,27 +3,72 @@
 
 // Place this script next to the ThioUtils.dll file.
 
-var ThioUtils = (function() {
+/**
+ * @typedef {Object} ThioUtilsDll
+ * @property {function(): (string|undefined|null)} getVersion
+ * @property {function(number): number} systemBeep
+ * @property {function(string): number} playSoundAlias
+ * @property {function(string): number} copyTextToClipboard
+ * @property {function(): (string|null)} getClipboardText
+ * @property {function(): void} terminate
+ * @property {function(): void} unload
+ */
+
+/**
+ * @typedef {Object} ThioUtilsErrorLike
+ * @property {string} [message]
+ * @property {number} [number]
+ */
+
+/**
+ * @typedef {Object} ErrorDefinition
+ * @property {number} code
+ * @property {string} message
+ */
+
+/**
+ * @typedef {Object.<string, ErrorDefinition>} ErrorDefinitionsMap
+ */
+
+/**
+ * @typedef {Object} ThioUtilsPublicApi
+ * @property {string} version_script
+ * @property {string} version_dll
+ * @property {function(): boolean} isLoaded
+ * @property {function(number=): number|undefined} systemBeep
+ * @property {function(string): number|undefined} playSoundAlias
+ * @property {function(string): number|undefined} copyTextToClipboard
+ * @property {function(): (string|null)} getClipboardText
+ * @property {function(): void} reloadDll
+ * @property {function(): void} reloadThisWrapper
+ * @property {function(): void} unload
+ */
+
+var ThioUtilsLib = (function() {
 
     // --- Private Members ---
-    const VERSION = "1.1.1.0"; // Version of this wrapper script. The minor version should match the DLL version.
+    const VERSION = "1.2.0.0"; // Version of this wrapper script. The minor version should match the DLL version.
 
-    var thioUtilsDll = null; // Stores the ExternalObject instance
+    // /** @type {ThioUtilsDll|null} Stores the ExternalObject instance */
+    /** @type {ThioUtilsDll|null} Stores the ExternalObject instance */
+    var thioUtilsDll = null;
     var _isLoaded = false;
     var _libFilename = "ThioUtils.dll";
     const ERROR_OK = 0; // kESErrOK from C++
 
     // --- DLL Loading ---
     // This block attempts to load the DLL when ThioUtils.jsx is included.
+    /** @type {string|undefined} */
+    var libPath;
     try {
         var currentScriptFile = File($.fileName); // Path to this ThioUtils.jsx file
         
         // Assuming ThioUtils.dll is next to ThioUtils.jsx
-        var libPath = currentScriptFile.parent.fullName + "/" + _libFilename;
+        libPath = currentScriptFile.parent.fullName + "/" + _libFilename;
 
         // Check if it's already loaded by some other means (less likely with this module pattern)
-        if (typeof thioUtilsDll === 'undefined' || thioUtilsDll === null || thioUtilsDll === undefined || force === true) {
-            var thioUtilsDll = new ExternalObject("lib:" + libPath);
+        if (thioUtilsDll === undefined || typeof thioUtilsDll === 'undefined' || thioUtilsDll === null) {
+            thioUtilsDll = /** @type {ThioUtilsDll} */ (/** @type {unknown} */ (new ExternalObject("lib:" + libPath)));
             if (thioUtilsDll !== null) {
                 _isLoaded = true;
             } else {
@@ -43,13 +88,15 @@ var ThioUtils = (function() {
 
     // -------------------------------------------------------------------------
 
+    /** @returns {string} */
     function getVersion(){
         return VERSION;
     }
 
+    /** @returns {string} */
     function getDllVersion() {
         var versionStr = "Unknown";
-        if (!_isLoaded || typeof thioUtilsDll === 'undefined' && thioUtilsDll === null){
+        if (!_isLoaded || typeof thioUtilsDll === 'undefined' || thioUtilsDll === null){
             return versionStr;
         }
     
@@ -67,6 +114,10 @@ var ThioUtils = (function() {
     };
 
     // Check if the error object is a custom ThioUtils error
+    /**
+     * @param {ThioUtilsErrorLike|*} errorObj
+     * @returns {string|0}
+     */
     function checkForCustomError(errorObj) {
         if (!errorObj || typeof errorObj !== 'object') {
             $.writeln("getErrorInfo: Invalid error object provided.");
@@ -85,6 +136,7 @@ var ThioUtils = (function() {
 
     // --- Error Definitions ---
     // Stores error names, codes, and messages in one place.
+    /** @type {ErrorDefinitionsMap} */
     var ERROR_DEFINITIONS = {
         OK: {
             code: 0,
@@ -119,6 +171,10 @@ var ThioUtils = (function() {
 
     // --- Private Error Message Helper (for custom codes primarily) ---
     // Retrieves the message for a given error code by looking it up in ERROR_DEFINITIONS.
+    /**
+     * @param {number} errorCode
+     * @returns {string|0}
+     */
     function _getCustomErrorMessage(errorCode) {
         for (var key in ERROR_DEFINITIONS) {
             if (ERROR_DEFINITIONS.hasOwnProperty(key)) {
@@ -131,6 +187,7 @@ var ThioUtils = (function() {
     }
 
     // ======================== Public API Object ========================
+    /** @type {ThioUtilsPublicApi} */
     var publicApi = {};
 
     publicApi.version_script = getVersion(); // Version of this script wrapper
@@ -147,10 +204,10 @@ var ThioUtils = (function() {
 
     /**
      * Plays a system beep sound. (Corresponds to C++ systemBeep_u)
-     * @param {number} soundType - The UINT sound type code (Windows-specific).
+     * @param {number=} soundType - The UINT sound type code (Windows-specific).
      */
     publicApi.systemBeep = function(soundType) {
-        if (!publicApi.isLoaded()) {
+        if (!publicApi.isLoaded() || typeof thioUtilsDll === 'undefined' || thioUtilsDll === undefined || thioUtilsDll === null) {
             return -999;
         }
 
@@ -169,9 +226,10 @@ var ThioUtils = (function() {
                 return 0;
             } 
         } catch (e) {
-            var exceptMsg = "ThioUtils.systemBeep: Exception during call - " + e;
+            var _e = /** @type {ThioUtilsErrorLike} */ (e);
+            var exceptMsg = "ThioUtils.systemBeep: Exception during call - " + _e;
             $.writeln(exceptMsg);
-            return e.number;
+            return _e.number;
         }
     };
 
@@ -180,7 +238,7 @@ var ThioUtils = (function() {
      * @param {string} aliasOrFilename - The sound alias or simple .wav filename.
      */
     publicApi.playSoundAlias = function(aliasOrFilename) {
-        if (!publicApi.isLoaded()) {
+        if (!publicApi.isLoaded() || typeof thioUtilsDll === 'undefined' || thioUtilsDll === undefined || thioUtilsDll === null) {
             return -999;
         }
 
@@ -195,9 +253,10 @@ var ThioUtils = (function() {
                 return 0;
             }
         } catch (e) {
-            var exceptMsg = "ThioUtils.playSoundAlias: Exception during call - " + e;
+            var _e = /** @type {ThioUtilsErrorLike} */ (e);
+            var exceptMsg = "ThioUtils.playSoundAlias: Exception during call - " + _e;
             $.writeln(exceptMsg);
-            return e.number;
+            return _e.number;
         }
     };
 
@@ -206,7 +265,7 @@ var ThioUtils = (function() {
      * @param {string} textToCopy - The string to copy.
      */
     publicApi.copyTextToClipboard = function(textToCopy) {
-        if (!publicApi.isLoaded()) { return -999; }
+        if (!publicApi.isLoaded() || typeof thioUtilsDll === 'undefined' || thioUtilsDll === undefined || thioUtilsDll === null) { return -999; }
 
         if (typeof textToCopy !== 'string') {
             alert("ThioUtils.copyTextToClipboard: The text to copy must be a string.");
@@ -217,17 +276,62 @@ var ThioUtils = (function() {
             var result = thioUtilsDll.copyTextToClipboard(textToCopy);
             if (result === ERROR_OK) { return 0; } 
         } catch (e) {
-            var customErrorResult = checkForCustomError(e);
+            var _e = /** @type {ThioUtilsErrorLike} */ (e);
+            var customErrorResult = checkForCustomError(_e);
 
             if (customErrorResult !== 0) {
                 var exceptMsg = "ThioUtils.copyTextToClipboard Error - " + customErrorResult;
             } else {
-                var exceptMsg = "ThioUtils.copyTextToClipboard: Exception during call - " + e.message;
+                var exceptMsg = "ThioUtils.copyTextToClipboard: Exception during call - " + _e.message;
             }
 
             $.writeln(exceptMsg);
             alert(exceptMsg);
-            return e.number;
+            return _e.number;
+        }
+    };
+
+    /**
+     * Gets the text from the clipboard and returns it.
+     * @returns {string|null} The text from the clipboard, or null if unavailable, such as busy clipboard or error.
+     */
+    publicApi.getClipboardText = function() {
+        /** @type {string|null} */
+        var textToReturn = null;
+
+        if (!_isLoaded || typeof thioUtilsDll === 'undefined' || thioUtilsDll === undefined || thioUtilsDll === null) {
+            return null
+        }
+
+        try {
+            textToReturn = thioUtilsDll.getClipboardText()
+
+            if (typeof textToReturn !== 'undefined' && textToReturn != null && textToReturn != undefined) {
+                return textToReturn
+            }
+        } catch (e) {
+            return null
+        }
+
+        return null
+    };
+
+    /**
+     * @returns {void}
+     */
+    publicApi.unload = function() {
+        // Unload the DLL and clean up resources
+        try {
+            if (thioUtilsDll !== null) {
+                thioUtilsDll.unload()
+                thioUtilsDll.terminate(); // Close the existing instance
+            }
+            thioUtilsDll = null;
+            _isLoaded = false;
+        } catch (e) {
+            _isLoaded = false;
+            $.writeln("Error unloading ThioUtils library: " + e);
+            alert("Critical Error: Failed to unload the ThioUtils library.\n" + e);
         }
     };
 
@@ -235,9 +339,9 @@ var ThioUtils = (function() {
         // Reload the DLL if needed, or reinitialize the object
         try {
             if (thioUtilsDll !== null) {
-                thioUtilsDll.unload(); // Close the existing instance
+                thioUtilsDll.terminate(); // Close the existing instance
             }
-            thioUtilsDll = new ExternalObject("lib:" + libPath);
+            thioUtilsDll = /** @type {ThioUtilsDll} */ (/** @type {unknown} */ (new ExternalObject("lib:" + libPath)));
             _isLoaded = (thioUtilsDll !== null);
         } catch (e) {
             _isLoaded = false;

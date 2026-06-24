@@ -4,7 +4,7 @@
 // --------------------------------------------------------------
 // Define as (Major,Minor,Patch,Build) including the parentheses.
 // This tuple will be used to generate all version formats.
-#define MYPROJECT_VERSION_COMPONENTS_TUPLE (1,1,1,0)
+#define MYPROJECT_VERSION_COMPONENTS_TUPLE (1,2,0,0)
 // --------------------------------------------------------------
 
 // --- Helper macros (you generally don't need to touch these) ---
