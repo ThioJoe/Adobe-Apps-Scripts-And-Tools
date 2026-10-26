@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Adobe Community - Newest Search Results First
+// @name         Adobe Community - Search Filter & Sorting
 // @namespace    https://community.adobe.com/
-// @version      1.1.5
+// @version      1.1.6
 // @description  Filter Adobe Community forum searches by topic creation date and sort loaded results by their displayed dates, including results added while scrolling.
 // @author       OpenAI
 // @match        https://community.adobe.com/*
@@ -112,7 +112,7 @@
                 sessionStorage.removeItem(PENDING_RANGE_KEY);
                 if (isSearchPage()) {
                     const saved = history.state?.[RANGE_STORAGE_KEY];
-                    if (pending?.query === dateRangeQuery && validDateRange(pending.range)) dateRange = pending.range;
+                    if (pending?.query === dateRangeQuery.trim() && validDateRange(pending.range)) dateRange = pending.range;
                     else if (saved?.query === dateRangeQuery && validDateRange(saved.range)) dateRange = saved.range;
                     saveCurrentSearchRange();
                 }
@@ -126,9 +126,12 @@
     function syncDateRange() {
         const query = new URLSearchParams(location.search).get('q') || '';
         if (dateRangePage === location.pathname && dateRangeQuery === query) return;
+        // A new search typed on the results page keeps the range shown there; Back/Forward restores each entry's own range.
+        const keepRange = !REMEMBER_DATE_RANGE && isSearchPage() && dateRangePage === location.pathname && !history.state?.[RANGE_STORAGE_KEY];
         dateRangePage = location.pathname;
         dateRangeQuery = query;
-        loadDateRange();
+        if (keepRange) saveCurrentSearchRange();
+        else loadDateRange();
         if (rangeToolbar) {
             rangeToolbar.querySelector('select').value = dateRange.preset;
             for (const key of ['from', 'to']) rangeToolbar.querySelector(`#${RANGE_TOOLBAR_ID}-${key}`).value = dateRange[key] || '';
@@ -146,7 +149,9 @@
         const searchLink = link && new URL(link.href, location.href);
         if (event.type === 'keydown' && event.key !== 'Enter') return;
         if (event.type === 'click' && !(target.closest('button[type="submit"]') || (searchLink?.origin === location.origin && /^\/search(?:\/index)?\/?$/.test(searchLink.pathname)))) return;
-        const query = searchLink?.searchParams.get('q') || widget.querySelector('input[type="search"], input[name="q"]')?.value || '';
+        // Focusing the banner search adds a second input over the original one, which stays empty; read the one holding the typed text.
+        const inputs = [...widget.querySelectorAll('input[type="search"], input[name="q"]')];
+        const query = searchLink?.searchParams.get('q') || (inputs.includes(target) ? target.value : inputs.map(input => input.value).reverse().find(value => value.trim())) || '';
         try {
             sessionStorage.setItem(PENDING_RANGE_KEY, JSON.stringify({ query: query.trim(), range: dateRange }));
             debug('Carrying the selected date range into the submitted search:', dateRange);
@@ -198,7 +203,6 @@
                 const params = encoded ? new URLSearchParams(request.params) : (request.params || request);
                 const query = encoded ? params.get('query') : params.query;
                 if (!query || !String(query).trim()) continue;
-                if (!REMEMBER_DATE_RANGE && isSearchPage() && String(query).trim() !== dateRangeQuery.trim()) continue;
                 let existing = encoded ? params.get('numericFilters') : params.numericFilters;
                 if (typeof existing === 'string') {
                     try { existing = JSON.parse(existing); } catch { existing = [existing]; }
@@ -359,52 +363,66 @@
                 rangeToolbarHost.style.display = 'flow-root';
                 rangeToolbarHost.append(document.createElement('div'));
                 const style = document.createElement('style');
-                // Let the site's search suggestions appear above our controls when open.
-                style.textContent = `.generic_hero:has(.search-box--open) #${RANGE_TOOLBAR_ID}-host { z-index: auto !important; }`;
+                // Keep banner controls compact; leave the search results page's layout alone.
+                style.textContent = `
+                    #${RANGE_TOOLBAR_ID}-host #${RANGE_TOOLBAR_ID} > label {
+                        flex: 0 0 auto; width: auto; margin: 0; padding: 0; white-space: nowrap;
+                    }
+                    #${RANGE_TOOLBAR_ID}-host #${RANGE_TOOLBAR_ID} > select {
+                        flex: 1 1 160px; width: auto; min-width: 0; height: 34px; margin: 0; box-sizing: border-box;
+                    }
+                    #${RANGE_TOOLBAR_ID}-host #${RANGE_TOOLBAR_ID} > span:not([role]) {
+                        flex-basis: 100%; width: 100%; min-width: 0;
+                    }
+                    #${RANGE_TOOLBAR_ID}-host #${RANGE_TOOLBAR_ID} > span > label {
+                        display: flex; align-items: center; gap: 8px; width: 100%; margin: 0;
+                    }
+                    #${RANGE_TOOLBAR_ID}-host #${RANGE_TOOLBAR_ID} input[type="date"] {
+                        flex: 1; width: 0; min-width: 0; box-sizing: border-box;
+                    }
+                    :is(.forum-featured-image, .brand-hero):has(.search-box--open)
+                        + #${RANGE_TOOLBAR_ID}-host[data-layout="below"] {
+                        visibility: hidden; pointer-events: none;
+                    }`;
                 document.head.append(style);
             }
             // The app banner overlaps this space and otherwise intercepts clicks.
             rangeToolbarHost.style.zIndex = getComputedStyle(hero).zIndex;
             const column = rangeToolbarHost.firstElementChild;
-            column.className = search.closest('.col')?.className || 'col';
             if (rangeToolbar.parentNode !== column) column.append(rangeToolbar);
             if (rangeToolbarHost.parentNode !== hero.parentNode || rangeToolbarHost.previousElementSibling !== hero) {
                 hero.after(rangeToolbarHost);
-                debug('Mounted the date-range controls below the banner, outside its fixed-height layout.');
+                debug('Mounted the date-range controls outside the banner\'s fixed-height layout.');
             }
-            const communityHome = /^\/community\/?$/.test(location.pathname);
             const anchor = search.querySelector('input[type="search"]') || search;
-            if (communityHome) {
-                const searchBox = anchor.getBoundingClientRect();
-                const banner = hero.getBoundingClientRect();
-                const offset = searchBox.width > 0 ? searchBox.bottom - banner.bottom : 0;
-                // Use the banner's empty space without changing its heading or search layout.
-                rangeToolbarHost.style.marginTop = `${offset}px`;
-                rangeToolbarHost.style.minHeight = `${Math.max(0, -offset)}px`;
-                rangeToolbarHost.style.position = 'relative';
-                rangeToolbarHost.style.padding = '0';
-                column.className = '';
-                column.style.display = 'flow-root';
-                column.style.width = searchBox.width > 0 ? `${searchBox.width}px` : '';
-                column.style.marginLeft = searchBox.width > 0 ? `${searchBox.left - rangeToolbarHost.getBoundingClientRect().left}px` : '';
-                debug('Aligned the community date controls directly below the search field.');
-            } else {
-                const gap = hero.getBoundingClientRect().bottom - anchor.getBoundingClientRect().bottom;
-                rangeToolbarHost.style.marginTop = `${-Math.min(16, Math.max(0, gap))}px`;
-                rangeToolbarHost.style.minHeight = '';
-                rangeToolbarHost.style.position = 'relative';
-                rangeToolbarHost.style.padding = '';
-                column.style.display = '';
-                column.style.width = '';
-                column.style.marginLeft = '';
-            }
-            const targets = communityHome ? [hero, hero.firstElementChild, anchor, rangeToolbar].filter(Boolean) : [];
+            const searchBox = anchor.getBoundingClientRect();
+            const searchWidth = search.closest('.sitewidth');
+            Object.assign(rangeToolbarHost.style, { position: 'relative', marginTop: '0', padding: '0' });
+            rangeToolbar.style.margin = '0';
+            const hostBox = rangeToolbarHost.getBoundingClientRect();
+            const rightEdge = Math.min((searchWidth || rangeToolbarHost).getBoundingClientRect().right - 10, document.documentElement.clientWidth - 16);
+            const available = rightEdge - searchBox.right - 16;
+            const beside = searchBox.width > 0 && available >= 280;
+            rangeToolbarHost.dataset.layout = beside ? 'beside' : 'below';
+            const top = beside ? searchBox.top : searchBox.bottom + 10;
+            Object.assign(column.style, {
+                position: 'absolute', boxSizing: 'border-box',
+                width: `${beside ? Math.min(360, available) : searchBox.width || hostBox.width}px`,
+                left: `${(beside ? searchBox.right + 16 : searchBox.left) - hostBox.left}px`,
+                top: `${top - hostBox.top}px`
+            });
+            // Position from the input itself; the site's negative banner margins can collapse.
+            // Reserve only the space the controls need below the banner's normal flow position.
+            rangeToolbarHost.style.height = `${Math.ceil(Math.max(0, top + rangeToolbar.getBoundingClientRect().height + 10 - hostBox.top))}px`;
+            debug('Aligned banner date controls:', beside ? 'beside the search field' : '10px below the search field');
+            const targets = [hero, hero.firstElementChild, searchWidth, anchor, rangeToolbar].filter(Boolean);
             if (targets.length !== rangeLayoutTargets.length || targets.some((target, i) => target !== rangeLayoutTargets[i])) {
                 rangeLayoutObserver?.disconnect();
                 targets.forEach(target => rangeLayoutObserver?.observe(target));
                 rangeLayoutTargets = targets;
             }
         } else {
+            rangeToolbar.style.margin = '10px 0';
             if (rangeToolbar.parentNode !== search.parentNode || rangeToolbar.previousElementSibling !== search) {
                 search.after(rangeToolbar);
                 debug('Mounted the date-range controls below the search bar.');
