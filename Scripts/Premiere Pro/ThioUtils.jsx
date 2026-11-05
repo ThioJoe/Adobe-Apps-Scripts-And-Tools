@@ -1,5 +1,5 @@
 // ThioUtils.jsx - Utility functions for Premiere Pro Extendscript
-// Updated - 11/4/26
+// Updated - 11/4/26 [2]
 //
 // NOTE FOR AI AGENTS: See organized list of all helpers functions at the bottom, searchable by the line containing "// region Categories"
 //
@@ -1706,8 +1706,29 @@ var ThioUtils = (function () {
         // overwriteClip places both halves of a linked pair, so skip clips that were already handled through a linked clip
         /**@type {Object.<string, boolean>}*/ var handledNodeIds = {};
 
-        for (var i = 0; i < clips.length; i++) {
-            var clip = clips[i];
+        // The QE version of the sequence, for moving clips with the QE move
+        /**@type {QESequence|null}*/ var qeSequenceForMove = null;
+        if (copy !== true) {
+            qeSequenceForMove = qe.project.getActiveSequence();
+            if (qeSequenceForMove === null || qeSequenceForMove.guid !== sequence.sequenceID) {
+                qeSequenceForMove = ThioUtils.getQESequenceFromVanilla(sequence);
+            }
+            if (qeSequenceForMove === null) {
+                return false;
+            }
+        }
+
+        // For relative moves, move the clips furthest in the direction of the move first. The QE move overwrites what's where the clip lands, so a clip moved onto a neighbor that hasn't moved yet would overwrite part of it
+        var clipsInMoveOrder = ThioUtils.convertToArray(clips).slice(0);
+        if (relative && copy !== true) {
+            var movingLater = Number(adjustedStartTimeObj.ticks) > 0;
+            clipsInMoveOrder.sort(function (a, b) {
+                return movingLater ? Number(b.start.ticks) - Number(a.start.ticks) : Number(a.start.ticks) - Number(b.start.ticks);
+            });
+        }
+
+        for (var i = 0; i < clipsInMoveOrder.length; i++) {
+            var clip = clipsInMoveOrder[i];
             if (handledNodeIds[clip.nodeId] === true) {
                 continue;
             }
@@ -1777,8 +1798,13 @@ var ThioUtils = (function () {
 
             if (copy !== true) {
                 // Shift the existing clip and its linked items instead of placing a new instance of the project item, so removed streams stay removed and effects are kept
-                var moveOffsetTimeObj = new Time();
-                moveOffsetTimeObj.ticks = String(Number(newTimeObjStart.ticks) - Number(clip.start.ticks));
+                var moveOffsetFrames = Math.round((Number(newTimeObjStart.ticks) - Number(clip.start.ticks)) / Number(sequence.timebase));
+
+                // The QE move reads its offset as a timecode, not a frame count, so "1500" would mean 15 seconds. Format it like the sequence's own timecode display
+                var moveOffsetTimecode = ThioUtils.getTimecodeString_FromTimeObject(ThioUtils.ticksToTimeObject(Math.abs(moveOffsetFrames) * Number(sequence.timebase)), false, sequence);
+                if (moveOffsetFrames < 0) {
+                    moveOffsetTimecode = "-" + moveOffsetTimecode;
+                }
 
                 /**@type {TrackItem[]}*/ var itemsToMove = [clip];
                 var linkedItemsArray = ThioUtils.convertToArray(clip.getLinkedItems());
@@ -1795,7 +1821,14 @@ var ThioUtils = (function () {
                 }
                 for (var p = 0; p < itemsToMove.length; p++) {
                     if (itemsToMove[p].start.ticks === startTicksBeforeMove[p]) {
-                        itemsToMove[p].move(moveOffsetTimeObj);
+                        // Uses the QE move because TrackItem.move() doesn't keep the track's clip list in time order, and Premiere then draws clips inconsistently or not at all
+                        var qeItemToMove = ThioUtils.getQEClipFromVanillaClip(itemsToMove[p], qeSequenceForMove);
+                        if (qeItemToMove !== null) {
+                            qeItemToMove.move(moveOffsetTimecode, false, false, false, false, false, true); // Last param aligns the edit to video to prevent audio drift
+                        } else {
+                            // Keeps the clip with its linked clips, but can leave the track's clip list out of order (repairTrackOrder fixes that)
+                            itemsToMove[p].move(ThioUtils.ticksToTimeObject(moveOffsetFrames * Number(sequence.timebase)));
+                        }
                     }
                 }
             } else {
@@ -2905,12 +2938,16 @@ var ThioUtils = (function () {
     };
 
     /**
-     * For a given vanilla clip object, retrieves the corresponding QE clip object from the active sequence.
+     * For a given vanilla clip object, retrieves the corresponding QE clip object from the active sequence, or from the given QE sequence.
      * @param {TrackItem} vanillaClip
+     * @param {QESequence|null=} qeSequence Optional: The QE sequence the clip is in. Defaults to the active sequence.
      * @returns {QETrackItem|null} The corresponding QE clip object if found, or null if not found.
      */
-    pub.getQEClipFromVanillaClip = function (vanillaClip) {
-        var qeSequence = qe.project.getActiveSequence();
+    pub.getQEClipFromVanillaClip = function (vanillaClip, qeSequence) {
+        if (typeof qeSequence === 'undefined' || qeSequence === undefined || qeSequence === null) {
+            qeSequence = qe.project.getActiveSequence();
+        }
+
         var trackIndex = vanillaClip.parentTrackIndex;
         var trackItem = null;
 
@@ -4806,6 +4843,218 @@ var ThioUtils = (function () {
         return text;
     };
 
+    // region Repair
+
+    /**
+     * Lists clips that are stored out of time order in their track's clip list. This happens when TrackItem.move() moves a clip past other clips, and Premiere then draws that track inconsistently or not at all. Use repairTrackOrder() to fix it.
+     * @param {Sequence=} sequence Optional: The sequence to check. Defaults to the active sequence.
+     * @returns {string[]} One description per clip that starts earlier than the clip stored before it. Empty if every track is in order.
+     */
+    pub.getTrackOrderProblems = function (sequence) {
+        var sequenceToCheck = ThioUtils.checkOrGetActiveSequence(sequence);
+        /**@type {string[]}*/ var problems = [];
+        if (sequenceToCheck === null) {
+            return problems;
+        }
+
+        /**@type {Array<[string, TrackCollection]>}*/ var groups = [["V", sequenceToCheck.videoTracks], ["A", sequenceToCheck.audioTracks]];
+        for (var g = 0; g < groups.length; g++) {
+            var tracks = groups[g][1];
+            for (var t = 0; t < tracks.numTracks; t++) {
+                var clips = tracks[t].clips;
+                for (var c = 1; c < clips.numItems; c++) {
+                    if (Number(clips[c].start.ticks) < Number(clips[c - 1].start.ticks)) {
+                        problems.push(groups[g][0] + (t + 1) + ": " + clips[c].name + " is stored after " + clips[c - 1].name);
+                    }
+                }
+            }
+        }
+        return problems;
+    };
+
+    /**
+     * Fixes clips that are stored out of time order in their track's clip list (see getTrackOrderProblems), which causes them to disappear.
+     * It does this by moving them to an empty track and back with the QE moveToTrack, which makes Premiere put them back in the right place.
+     * It uses the topmost empty video track or bottommost empty audio track. If there isn't one, it adds one at the top or bottom, and removes it again at the end.
+     * Clips on locked tracks are skipped. If the moves remove a transition at a clip's edges, that's reported.
+     * @param {Sequence=} sequence Optional: The sequence to repair. Defaults to the active sequence.
+     * @returns {string[]} What was re-placed, plus anything that couldn't be fixed.
+     */
+    pub.repairTrackOrder = function (sequence) {
+        var sequenceToFix = ThioUtils.checkOrGetActiveSequence(sequence);
+        /**@type {string[]}*/ var log = [];
+        if (sequenceToFix === null) {
+            return log;
+        }
+
+        /**@type {QESequence|null}*/ var qeSequence = qe.project.getActiveSequence();
+        if (qeSequence === null || qeSequence.guid !== sequenceToFix.sequenceID) {
+            qeSequence = ThioUtils.getQESequenceFromVanilla(sequenceToFix);
+        }
+        if (qeSequence === null) {
+            log.push("Could not find the QE sequence for " + sequenceToFix.name);
+            return log;
+        }
+
+        // Which kinds of track ("V" or "A") had a track added to move clips through
+        /**@type {Object.<string, boolean>}*/ var addedTrack = {};
+
+        /**
+         * Finds a clip on a QE track by its start and end. Gaps and transitions never share both with a clip. Gets the track fresh each time, since moves change it.
+         * @param {QESequence} qeSeq
+         * @param {boolean} isVideo
+         * @param {number} trackIndex
+         * @param {number} startTicks
+         * @param {number} endTicks
+         * @returns {QETrackItem|null}
+         */
+        function findQEClip(qeSeq, isVideo, trackIndex, startTicks, endTicks) {
+            var qeTrack = isVideo ? qeSeq.getVideoTrackAt(trackIndex) : qeSeq.getAudioTrackAt(trackIndex);
+            for (var q = 0; q < qeTrack.numItems; q++) {
+                var qeItem = qeTrack.getItemAt(q);
+                if (qeItem && qeItem.type !== "Empty" && Number(qeItem.start.ticks) === startTicks && Number(qeItem.end.ticks) === endTicks) {
+                    return qeItem;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Gets the topmost empty, unlocked video track or bottommost empty, unlocked audio track, adding one at the top or bottom if there isn't one.
+         * @param {Sequence} seq
+         * @param {QESequence} qeSeq
+         * @param {boolean} isVideo
+         * @returns {number} The track's index, or -1 if adding a track failed
+         */
+        function getEmptyTrackIndex(seq, qeSeq, isVideo) {
+            var kindTracks = isVideo ? seq.videoTracks : seq.audioTracks;
+            for (var e = kindTracks.numTracks - 1; e >= 0; e--) {
+                if (kindTracks[e].clips.numItems === 0 && kindTracks[e].isLocked() !== true) {
+                    return e;
+                }
+            }
+
+            var countBefore = kindTracks.numTracks;
+            if (isVideo) {
+                qeSeq.addTracks(1, countBefore, 0); // One video track at the top, no audio tracks
+            } else {
+                qeSeq.addTracks(0, 0, 1, 1, countBefore); // No video tracks, one stereo audio track at the bottom
+            }
+            kindTracks = isVideo ? seq.videoTracks : seq.audioTracks;
+            if (kindTracks.numTracks !== countBefore + 1 || kindTracks[countBefore].clips.numItems !== 0) {
+                return -1;
+            }
+            addedTrack[isVideo ? "V" : "A"] = true;
+            return countBefore;
+        }
+
+        var stop = false;
+        /**@type {Array<[string, TrackCollection]>}*/ var groups = [["V", sequenceToFix.videoTracks], ["A", sequenceToFix.audioTracks]];
+
+        for (var g = 0; g < groups.length && !stop; g++) {
+            var isVideo = groups[g][0] === "V";
+            var tracks = groups[g][1];
+            for (var t = 0; t < tracks.numTracks && !stop; t++) {
+                var track = tracks[t];
+                var label = groups[g][0] + (t + 1);
+
+                // Find the clips that start earlier than a clip stored before them. Without them, the rest of the track's list is in time order
+                var clips = track.clips;
+                /**@type {Array<{name: string, start: number, end: number}>}*/ var strays = [];
+                var latestStart = -1;
+                for (var c = 0; c < clips.numItems; c++) {
+                    var clipStart = Number(clips[c].start.ticks);
+                    if (clipStart < latestStart) {
+                        strays.push({ name: clips[c].name, start: clipStart, end: Number(clips[c].end.ticks) });
+                    } else {
+                        latestStart = clipStart;
+                    }
+                }
+                if (strays.length === 0) {
+                    continue;
+                }
+                if (track.isLocked()) {
+                    log.push(label + ": skipped because the track is locked");
+                    continue;
+                }
+
+                var emptyIndex = getEmptyTrackIndex(sequenceToFix, qeSequence, isVideo);
+                if (emptyIndex === -1) {
+                    log.push("Couldn't add an empty " + (isVideo ? "video" : "audio") + " track to move clips through");
+                    stop = true;
+                    break;
+                }
+                var emptyLabel = groups[g][0] + (emptyIndex + 1);
+                var shift = emptyIndex - t;
+                var transitionsBefore = track.transitions ? track.transitions.numItems : 0;
+
+                // Move them all to the empty track. Then the clips left on this track are in order, so each one moved back lands in the right place
+                /**@type {Array<{name: string, start: number, end: number}>}*/ var movedUp = [];
+                for (var s = 0; s < strays.length; s++) {
+                    var qeStray = findQEClip(qeSequence, isVideo, t, strays[s].start, strays[s].end);
+                    if (qeStray === null) {
+                        log.push(label + ": couldn't find " + strays[s].name + " in the QE DOM");
+                        continue;
+                    }
+                    qeStray.moveToTrack(isVideo ? shift : 0, isVideo ? 0 : shift, "00:00:00:00", false);
+                    if (findQEClip(qeSequence, isVideo, emptyIndex, strays[s].start, strays[s].end) !== null) {
+                        movedUp.push(strays[s]);
+                    } else if (findQEClip(qeSequence, isVideo, t, strays[s].start, strays[s].end) !== null) {
+                        log.push(label + ": couldn't move " + strays[s].name + " to " + emptyLabel);
+                    } else {
+                        log.push(label + ": " + strays[s].name + " didn't arrive on " + emptyLabel + " as expected, check where it went");
+                        stop = true;
+                        break;
+                    }
+                }
+
+                // Move them back
+                for (var m = 0; m < movedUp.length; m++) {
+                    var qeMoved = findQEClip(qeSequence, isVideo, emptyIndex, movedUp[m].start, movedUp[m].end);
+                    if (qeMoved !== null) {
+                        qeMoved.moveToTrack(isVideo ? -shift : 0, isVideo ? 0 : -shift, "00:00:00:00", false);
+                    }
+                    if (findQEClip(qeSequence, isVideo, t, movedUp[m].start, movedUp[m].end) !== null) {
+                        log.push(label + ": re-placed " + movedUp[m].name);
+                    } else {
+                        log.push(label + ": " + movedUp[m].name + " didn't come back from " + emptyLabel + ", check both tracks");
+                        stop = true;
+                    }
+                }
+
+                if ((track.transitions ? track.transitions.numItems : 0) < transitionsBefore) {
+                    log.push(label + ": moving the clips removed a transition at their edges");
+                }
+            }
+        }
+
+        // Remove the tracks added above. removeEmptyVideoTracks and removeEmptyAudioTracks remove every empty track, so only use them when the added track is the only empty one
+        for (var k = 0; k < groups.length; k++) {
+            if (addedTrack[groups[k][0]] !== true) {
+                continue;
+            }
+            var kindIsVideo = groups[k][0] === "V";
+            var kindTracks = kindIsVideo ? sequenceToFix.videoTracks : sequenceToFix.audioTracks;
+            var addedIndex = kindTracks.numTracks - 1;
+            var emptyCount = 0;
+            for (var e = 0; e < kindTracks.numTracks; e++) {
+                if (kindTracks[e].clips.numItems === 0) { emptyCount++; }
+            }
+            if (emptyCount === 1 && kindTracks[addedIndex].clips.numItems === 0) {
+                if (kindIsVideo) { qeSequence.removeEmptyVideoTracks(); } else { qeSequence.removeEmptyAudioTracks(); }
+            }
+            if ((kindIsVideo ? sequenceToFix.videoTracks : sequenceToFix.audioTracks).numTracks > addedIndex) {
+                log.push("Left the added track " + groups[k][0] + (addedIndex + 1) + " in place");
+            }
+        }
+
+        var remaining = ThioUtils.getTrackOrderProblems(sequenceToFix);
+        for (var r = 0; r < remaining.length; r++) {
+            log.push("Still out of order: " + remaining[r]);
+        }
+        return log;
+    };
+
     // region ThioUtils.dll
     // ================================ Functions That Utilize ThioUtils.dll ================================
 
@@ -5120,6 +5369,16 @@ var ThioUtils = (function () {
         isDefined: pub.isDefined,
         logEvent: pub.logEvent,
     };
+
+    /**
+     * @namespace repair
+     * @memberof ThioUtils
+     * @description Functions for repairing issues in sequences, clips, or the project in general
+     */
+    pub.repair = {
+        repairTrackOrder: pub.repairTrackOrder,
+        getTrackOrderProblems: pub.getTrackOrderProblems
+    }
 
     /**
      * @namespace system
