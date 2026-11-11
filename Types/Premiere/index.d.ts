@@ -2000,9 +2000,13 @@ declare class DebugMonitor {
     openCategory(categoryId: string): boolean;
 }
 
+/** @ts-expect-error False clash with lib.dom.d.ts */
+declare const document: Document
+
 /**
  * Document class
  */
+/** @ts-expect-error False clash with lib.dom.d.ts */
 declare class Document {
 
     bind(eventName: string, function_: any): void
@@ -2089,7 +2093,7 @@ declare class Encoder {
 
     encodeFile(inputFilePath: string, outputFilePath: string, presetPath: string, removeOnCompletion?: number, startTime?: object, stopTime?: object): string | undefined;
     encodeProjectItem(projectItem: ProjectItem, outputFilePath: string, presetPath: string, WorkAreaType?: number, removeOnCompletion?: boolean, uArg3?: boolean): string;
-    encodeSequence(sequence: Sequence, outputFilePath: string, presetPath: string, WorkAreaType?: number, removeOnCompletion?: boolean, uArg3: boolean): string;
+    encodeSequence(sequence: Sequence, outputFilePath: string, presetPath: string, WorkAreaType?: number, removeOnCompletion?: boolean, uArg3?: boolean): string;
 
     getExporters(): Array<any>;
     launchEncoder(): boolean;
@@ -3380,7 +3384,7 @@ declare class PixelAspectRatio {
     /**
      * Returns true if the given PixelAspectRatioObject is equal to this PixelAspectRatioObject
      */
-    equals(pixelAspectRatioObject: PixelAspectRatioObject): boolean;
+    equals(pixelAspectRatioObject: PixelAspectRatio): boolean;
 }
 
 /**
@@ -4046,9 +4050,9 @@ declare class Project {
      * Imports files into the project.
      * @param arrayOfFilePathsToImport An array of paths to files to import
      * @param suppressUI optional; if true, suppress any warnings, translation reports, or errors.
-     * @param importAsNumberedStill optiona; if present, interprets the file paths as a series of numbered stills.
+     * @param importAsNumberedStill optional; if present, interprets the file paths as a series of numbered stills.
      */
-    importFiles(arrayOfFilePathsToImport: string[], suppressUI?: boolean, TargetBin: ProjectItem, importAsNumberedStill?: boolean): boolean;
+    importFiles(arrayOfFilePathsToImport: string[], suppressUI?: boolean, TargetBin?: ProjectItem, importAsNumberedStill?: boolean): boolean;
     /**
      * Imports sequences from a project.
      * @param projectPath Path to project from which to import sequences.
@@ -5022,6 +5026,7 @@ declare interface QEProject {
      * 
      */
     deletePreviewFiles(type: MediaType): boolean
+    
     /**
      * Deletes all of this project's preview (render) files of one media type, then recalculates every sequence's video render bar. Can't be undone.
      * @param {string | "228CDA18-3625-4d2d-951E-348879E4ED93" | "80B8E3D5-6DCA-4195-AEFB-CB5F407AB009" | "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF"} mediaType Media type GUID string:
@@ -5032,7 +5037,7 @@ declare interface QEProject {
      * @example qe.project.deletePreviewFiles("FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF"); // any
      * @returns false if there's no project or the video delete fails; otherwise true.
      */
-    deletePreviewFiles(mediaType): boolean;
+    deletePreviewFiles(mediaType: "228CDA18-3625-4d2d-951E-348879E4ED93" | "80B8E3D5-6DCA-4195-AEFB-CB5F407AB009" | "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF" | (string & {})): boolean;
 
     findItemByID(pp0: string): object
     flushCache(): boolean;
@@ -6264,7 +6269,7 @@ declare class SequenceSettings {
     /**
      * APIs to get and set the gamut mapping controls
      */
-    gamutMappingControls: GamutMappingControls;
+    gamutMappingControls: GamutMappingControls | null;
     previewCodec: string;
 }
 
@@ -6918,16 +6923,19 @@ declare interface TabPanel {
     /**
      * Return this tab panel as a UINode object.
      */
+    /** @ts-expect-error Can't find UINode */
     getAsUINode(): UINode;
 
     /**
      * Get the first child UI node matching the given node ID.
      */
+    /** @ts-expect-error Can't find UINode */
     getChildNodeByNodeID(nodeID: string): UINode;
 
     /**
      * Get the top-level window that contains this panel.
      */
+    /** @ts-expect-error Can't find TopLevelWindow */
     getTopLevelWindow(): TopLevelWindow;
 }
 
@@ -7207,7 +7215,7 @@ declare class Timecode {
     /**
      * Returns true if the given TimecodeObject is equal to this TimecodeObject
      */
-    equals(TimecodeObject: TimecodeObject): boolean;
+    equals(TimecodeObject: Timecode): boolean;
 }
 
 /**
@@ -8133,7 +8141,7 @@ declare namespace dvappsupport {
     /**
      * Spell check event object for sending broadcast messages to script env
      */
-    declare interface spellcheckupdate {
+    interface spellcheckupdate {
 
         /**
          * Get what word was added|removed from the dictionary
@@ -8287,8 +8295,6 @@ type ApplicationEvent =
     | "onActiveSequenceStructureChanged"
     | "onProjectChanged"
     | "onProjectEndDrop"
-
-declare const document: Document
 
 interface CodeProfiler {
     start(): any
@@ -9032,6 +9038,24 @@ declare class TrackIndex {
      * Constant meaning unset track index.
      */
     static readonly INVALID: number;
+}
+
+/**
+ * Gamut Mapping Controls.
+ * Returned by SequenceSettings.gamutMappingControls. ExtendScript doesn't register this class
+ * (it's in UXP's MediaFoundation namespace), so there's no GamutMappingControls global.
+ */
+declare class GamutMappingControls {
+    /** Sets tone mapping desaturation */
+    desaturation: number;
+    /** Sets tone mapping gain */
+    gain: number;
+    /** Sets the gamut compression method */
+    gamutCompressionMethod: string;
+    /** Sets tone mapping knee */
+    knee: number;
+    /** Sets the tone mapping method */
+    toneMappingMethod: string;
 }
 
 

@@ -208,9 +208,6 @@ declare class AudioChannelMap {
 }
 
 /**
-}
-
-/**
  * Represents the current audio device object. Data like 'sample rate' is editable.
  */
 declare class AudioDevice {
@@ -258,7 +255,7 @@ declare class AudioDevice {
 	/**
 	 * The info object of the input device
 	 */
-	readonly inputDeviceInfo: any;
+	readonly inputDeviceInfo: AudioDeviceInfo;
 
 	/**
 	 * The name of the input device
@@ -338,7 +335,7 @@ declare class AudioDevice {
 	/**
 	 * The info object of the output device
 	 */
-	readonly outputDeviceInfo: any;
+	readonly outputDeviceInfo: AudioDeviceInfo;
 
 	/**
 	 * The name of the output device
@@ -621,9 +618,9 @@ declare interface AudioFilter {
 	setParameter(index: number, value: number): boolean;
 }
 
-    /**
-     * AudioFormat describes the format in the form of the sample rate, the bit depth and the channel layout.
-     */
+/**
+ * AudioFormat describes the format in the form of the sample rate, the bit depth and the channel layout.
+ */
 declare class AudioFormat {
 
 	/**
@@ -863,9 +860,11 @@ declare class Command {
 	static isCommandIDEnabled(commandID: number): boolean;
 }
 
+
 /**
  * Command event object
  */
+/** @ts-expect-error */
 declare class CommandEvent {
 
 	/**
@@ -1942,9 +1941,6 @@ declare class Hash {
 }
 
 /**
-}
-
-/**
  * Class to faciliate the creation of Lumetri Scopes object
  */
 declare class LumetriScopes {
@@ -2320,8 +2316,9 @@ declare class PixelFormat {
 	static createPixelFormat(formatFourCC: string): PixelFormat;
 }
 
-/**
-	getLumetriScopes(): LumetriScopes;
+declare interface Project {
+	// In the internal dom, this may return with LumetriScopes instead of any/null
+	getLumetriScopes(): LumetriScopes | null;
 }
 
 /**
@@ -2354,9 +2351,6 @@ declare interface ProjectItemsConnectionEvent {
 	 * Return connection event status.
 	 */
 	readonly succeeded: boolean;
-}
-
-/**
 }
 
 /**
@@ -2468,7 +2462,7 @@ declare class PropertyList {
 	 * Set value of type unsigned integer (32-bit) by key
 	 */
 	setUint32Value(key: string, value: number): boolean;
- 
+
 }
 
 /**
@@ -2555,9 +2549,6 @@ declare class RegisteredDirectories {
 }
 
 /**
-}
-
-/**
  * Dynamiclink render audio callback.
  */
 declare interface RenderAudioConnectionEvent {
@@ -2618,7 +2609,7 @@ declare interface RenderVideoConnectionEvent {
 	 * Return connection event status.
 	 */
 	readonly succeeded: boolean;
- 
+
 }
 
 /**
@@ -2707,9 +2698,6 @@ declare class TransmitTestPlugin {
 	 * Color space of the rendered frame
 	 */
 	setRenderColorSpace(ColorSpace: object): boolean;
-}
-
-/**
 }
 
 /**
@@ -3222,9 +3210,6 @@ declare class VirtualAudioFilterEvent {
 	 * A VirtualAudioFilter object has been suspended.
 	 */
 	static readonly EVENT_SUSPENDED: string;
-}
-
-/**
 }
 
 /**
